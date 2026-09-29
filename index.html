@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompt Shorthand Analyzer - Optimasi Prompt & Notasi Shorthand Cerdas</title>
+  <meta name="description" content="Aplikasi analisis prompt berbasis konteks untuk merekomendasikan notasi shorthand, menghemat token, dan meningkatkan kepatuhan instruksi LLM.">
+  
+  <!-- Preconnect and Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/diff.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       App Header / Navigation
+       ========================================================================= -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <div class="brand-logo" aria-hidden="true">
+          <span>&lt;/&gt;</span>
+        </div>
+        <div class="brand-text">
+          <h1>Prompt Shorthand Analyzer</h1>
+          <p>Contextual Shorthand Notation &amp; Prompt Compression</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- History Button -->
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-history" title="Riwayat Analisis">
+          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+          Riwayat
+        </button>
+
+        <!-- BYOK Settings Button -->
+        <button type="button" class="btn btn-outline btn-sm" id="btn-open-byok" title="Pengaturan BYOK Gemini API">
+          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+          BYOK Settings
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button type="button" class="btn btn-outline btn-sm" id="btn-theme-toggle" title="Ganti Tema">
+          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       Main Application Container
+       ========================================================================= -->
+  <main class="app-main">
+    
+    <!-- Engine Status & Switcher Banner -->
+    <div class="engine-bar">
+      <div class="engine-controls">
+        <label class="toggle-wrapper">
+          <span class="switch">
+            <input type="checkbox" id="toggle-ai-engine">
+            <span class="slider"></span>
+          </span>
+          <span id="engine-mode-label" style="font-weight: 600;">Mode: Offline Rule Engine</span>
+        </label>
+        <span class="badge badge-neutral" id="byok-status-badge">
+          <span class="badge-dot"></span> BYOK Belum Diatur
+        </span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Target Domain:</span>
+        <select id="category-filter" class="select-input" style="width: auto; padding: 0.35rem 0.75rem;">
+          <option value="all">Deteksi Otomatis (Semua)</option>
+          <option value="code">Rekayasa Kode / Dev</option>
+          <option value="image">Midjourney / Generasi Gambar</option>
+          <option value="reasoning">Penalaran &amp; Analisis (CoT)</option>
+          <option value="format">Format Data / JSON</option>
+          <option value="persona">Persona / Gaya Bahasa</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Workspace Grid: Left (Input & Analysis) / Right (Output & Recommendations) -->
+    <div class="workspace-grid">
+      
+      <!-- LEFT COLUMN: Input & Quick Presets -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            <span>Input Prompt Asli</span>
+          </div>
+          <button type="button" class="btn btn-outline btn-xs" id="btn-clear">
+            Kosongkan
+          </button>
+        </div>
+
+        <!-- Presets Row -->
+        <div class="presets-group">
+          <span class="presets-label">Preset Contoh:</span>
+          <button type="button" class="btn-preset" data-preset="coding">TypeScript Dev</button>
+          <button type="button" class="btn-preset" data-preset="image">Midjourney Foto</button>
+          <button type="button" class="btn-preset" data-preset="executive">Ringkasan Bisnis</button>
+          <button type="button" class="btn-preset" data-preset="reasoning">Kalkulasi Bertahap</button>
+        </div>
+
+        <!-- Textarea Input -->
+        <div class="form-group">
+          <textarea 
+            id="prompt-input" 
+            class="textarea-prompt font-mono" 
+            placeholder="Ketik atau tempelkan prompt Anda di sini...&#10;&#10;Contoh:&#10;Tolong bantu saya buatkan fungsi di TypeScript untuk debouncing..."
+          ></textarea>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <small style="color: var(--text-muted); font-size: 0.775rem;">
+            Analisis lokal berjalan otomatis saat mengetik (debounced).
+          </small>
+          <button type="button" class="btn btn-primary" id="btn-analyze">
+            <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            Analisis Prompt
+          </button>
+        </div>
+
+        <!-- Missing Structure Alert Box -->
+        <div class="panel-header" style="margin-top: 0.5rem;">
+          <div class="panel-title" style="font-size: 0.9rem;">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span>Celah Struktur Prompt (Peluang Optimasi)</span>
+          </div>
+        </div>
+        <div id="missing-structure-list" class="missing-list">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Dashboard Metrics & Optimized Prompt -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            <span>Metrik &amp; Prompt Teroptimasi</span>
+          </div>
+          <span class="badge badge-structure" id="intent-badge">Instruksi Umum</span>
+        </div>
+
+        <!-- Metrics Cards Grid -->
+        <div class="metrics-row">
+          <div class="metric-card">
+            <span class="metric-label">Kata</span>
+            <span class="metric-value" id="metric-word-count">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Est. Token</span>
+            <span class="metric-value" id="metric-token-count">~0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Densitas Shorthand</span>
+            <span class="metric-value" id="metric-density-val">0%</span>
+            <div class="progress-track">
+              <div class="progress-fill" id="metric-density-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Skor Keringkasan</span>
+            <span class="metric-value" id="metric-concise-val">0/100</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Potensi Hemat</span>
+            <span class="metric-value metric-highlight" id="metric-savings-val">~0 tokens</span>
+          </div>
+        </div>
+
+        <!-- Optimized Prompt View -->
+        <div class="optimized-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <label class="form-label" style="margin-bottom: 0;">Hasil Restrukturisasi Shorthand:</label>
+            <div style="display: flex; gap: 0.4rem;">
+              <button type="button" class="btn btn-outline btn-xs" id="btn-export-md" title="Unduh laporan markdown">
+                Unduh .md
+              </button>
+              <button type="button" class="btn btn-secondary btn-xs" id="btn-apply-optimized" title="Gantikan teks input dengan hasil ini">
+                Gantikan Input Asli
+              </button>
+              <button type="button" class="btn btn-primary btn-xs" id="btn-copy-optimized" title="Salin ke clipboard">
+                Salin Hasil
+              </button>
+            </div>
+          </div>
+
+          <textarea 
+            id="optimized-prompt-text" 
+            class="textarea-prompt font-mono" 
+            style="min-height: 140px; background: rgba(0,0,0,0.25);"
+            readonly
+            placeholder="Prompt yang telah dioptimasi dengan shorthand akan muncul di sini..."
+          ></textarea>
+
+          <div class="diff-summary-card">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span id="diff-summary-text">Ketik atau tempelkan prompt di atas untuk memulai analisis.</span>
+          </div>
+        </div>
+
+        <!-- Recommended Shorthands Section -->
+        <div class="panel-header" style="margin-top: 0.5rem;">
+          <div class="panel-title" style="font-size: 0.9rem;">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+            <span>Rekomendasi Shorthand Berdasarkan Konteks</span>
+          </div>
+        </div>
+
+        <div id="recommendations-list" class="recommendations-wrapper">
+          <!-- Rendered via JS -->
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- =======================================================================
+         Bottom Section: Interactive Shorthand Catalog
+         ======================================================================= -->
+    <section class="catalog-section">
+      <div class="catalog-header">
+        <div>
+          <h2 style="font-size: 1.15rem; font-weight: 700;">Katalog &amp; Referensi Shorthand</h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">
+            Koleksi lengkap notasi ringkas, parameter, dan direktif prompt engineering.
+          </p>
+        </div>
+
+        <div style="min-width: 260px;">
+          <input 
+            type="search" 
+            id="catalog-search" 
+            class="input-text" 
+            placeholder="Cari notasi, tag, atau kata kunci..."
+          >
+        </div>
+      </div>
+
+      <!-- Category Navigation Tabs -->
+      <nav id="catalog-nav" class="catalog-nav" aria-label="Kategori Shorthand">
+        <!-- Rendered via JS -->
+      </nav>
+
+      <!-- Catalog Cards Grid -->
+      <div id="catalog-grid" class="catalog-grid">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       Footer
+       ========================================================================= -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>
+        <strong>Prompt Shorthand Analyzer</strong> &mdash; 100% Client-Side Static Web App
+      </div>
+      <div>
+        Kompatibel dengan GitHub Pages &bull; BYOK Gemini API &bull; Privasi Terjaga
+      </div>
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       Modal: BYOK Gemini Settings (API Key Password Input with Show/Hide)
+       ========================================================================= -->
+  <div class="modal" id="modal-byok" role="dialog" aria-modal="true" aria-labelledby="byok-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="byok-title">Pengaturan BYOK (Bring Your Own Key)</h3>
+        <button type="button" class="modal-close" aria-label="Tutup modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+          Aplikasi ini beroperasi 100% di browser Anda. API Key Anda disimpan hanya di <code>localStorage</code> perangkat lokal dan dipanggil langsung ke Google Generative Language REST API. Tidak ada server perantara.
+        </p>
+
+        <!-- API Key Input with Password Show/Hide Toggle -->
+        <div class="form-group">
+          <label class="form-label" for="byok-api-key-input">Gemini API Key:</label>
+          <div class="input-password-wrapper">
+            <input 
+              type="password" 
+              id="byok-api-key-input" 
+              class="input-text font-mono" 
+              placeholder="AIzaSy..." 
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <button type="button" class="btn-toggle-eye" id="byok-toggle-show" aria-label="Tampilkan API Key">
+              <!-- Eye Icon SVG -->
+              <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </button>
+          </div>
+          <small style="color: var(--text-muted); font-size: 0.725rem;">
+            Dapatkan kunci gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Google AI Studio</a>.
+          </small>
+        </div>
+
+        <!-- Model Selection -->
+        <div class="form-group">
+          <label class="form-label" for="byok-model-select">Model Gemini:</label>
+          <select id="byok-model-select" class="select-input">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Rekomendasi Cepat &amp; Cerdas)</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Penalaran Kompleks Mendalam)</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Cepat &amp; Ringan)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Jendela Konteks Besar)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm" id="btn-clear-byok">
+          Hapus Kunci
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-test-byok">
+          Uji Koneksi
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-save-byok">
+          Simpan Kunci
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       Modal: Prompt History
+       ========================================================================= -->
+  <div class="modal" id="modal-history" role="dialog" aria-modal="true" aria-labelledby="history-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="history-title">Riwayat Analisis Prompt</h3>
+        <button type="button" class="modal-close" aria-label="Tutup modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Daftar 20 prompt terakhir yang dianalisis pada browser ini.
+        </p>
+        <div id="history-list" class="history-list">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" id="btn-clear-history">
+          Kosongkan Riwayat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Core JavaScript Modules (Standard ES Script Load) -->
+  <script src="js/catalog.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/localAnalyzer.js"></script>
+  <script src="js/geminiAnalyzer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
