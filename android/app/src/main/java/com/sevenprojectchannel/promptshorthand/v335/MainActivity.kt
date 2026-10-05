@@ -1,6 +1,7 @@
 package com.sevenprojectchannel.promptshorthand.v335
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -15,6 +16,7 @@ import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -27,6 +29,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -45,6 +49,27 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
     }
+
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
+    private val fileChooserLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val intent = result.data
+                val results: Array<Uri>? = when {
+                    intent?.data != null -> arrayOf(intent.data!!)
+                    intent?.clipData != null -> {
+                        val clipData = intent.clipData!!
+                        Array(clipData.itemCount) { i -> clipData.getItemAt(i).uri }
+                    }
+                    else -> null
+                }
+                filePathCallback?.onReceiveValue(results)
+            } else {
+                filePathCallback?.onReceiveValue(null)
+            }
+            filePathCallback = null
+        }
 
     private lateinit var webView: WebView
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
@@ -153,6 +178,35 @@ class MainActivity : AppCompatActivity() {
                     .show()
                 return true
             }
+
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                this@MainActivity.filePathCallback?.onReceiveValue(null)
+                this@MainActivity.filePathCallback = filePathCallback
+
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    type = "image/*"
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    val acceptTypes = fileChooserParams?.acceptTypes?.filter { it.isNotBlank() }?.toTypedArray()
+                    if (!acceptTypes.isNullOrEmpty()) {
+                        putExtra(Intent.EXTRA_MIME_TYPES, acceptTypes)
+                    }
+                }
+
+                return try {
+                    val chooser = Intent.createChooser(intent, "Pilih Gambar")
+                    fileChooserLauncher.launch(chooser)
+                    true
+                } catch (e: Exception) {
+                    Log.e("PSA_WEBVIEW", "Gagal membuka pemilih berkas: ${e.message}", e)
+                    this@MainActivity.filePathCallback?.onReceiveValue(null)
+                    this@MainActivity.filePathCallback = null
+                    false
+                }
+            }
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -226,6 +280,12 @@ class MainActivity : AppCompatActivity() {
     private fun setupBackNavigation() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (filePathCallback != null) {
+                    filePathCallback?.onReceiveValue(null)
+                    filePathCallback = null
+                    return
+                }
+
                 if (layoutError.visibility == View.VISIBLE) {
                     if (webView.canGoBack()) {
                         showWebView()
@@ -286,6 +346,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        filePathCallback?.onReceiveValue(null)
+        filePathCallback = null
         webView.destroy()
         super.onDestroy()
     }
