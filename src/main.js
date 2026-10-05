@@ -866,8 +866,21 @@ class App {
   }
 }
 
-// Bootstrapping
-document.addEventListener('DOMContentLoaded', () => {
-  window.__PSA_APP__ = new App();
-  window.__PSA_APP__.render();
-});
+// Resilient App Bootstrapping
+function initPromptShorthandApp() {
+  if (window.__PSA_APP__) return;
+  const rootEl = document.getElementById('app');
+  if (rootEl) {
+    window.__PSA_APP__ = new App();
+    window.__PSA_APP__.render();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPromptShorthandApp);
+} else {
+  initPromptShorthandApp();
+}
+
+// Fallback window load listener in case of late asset injection
+window.addEventListener('load', initPromptShorthandApp);

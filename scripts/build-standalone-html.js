@@ -6,13 +6,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
-const cssPath = path.join(projectRoot, 'dist/assets/index-D6E0OC2b.css');
-const jsPath = path.join(projectRoot, 'dist/assets/index-DKvLWBLY.js');
-
-if (!fs.existsSync(cssPath) || !fs.existsSync(jsPath)) {
+const assetsDir = path.join(projectRoot, 'dist/assets');
+if (!fs.existsSync(assetsDir)) {
   console.error('Dist assets not found. Run npm run build first.');
   process.exit(1);
 }
+
+const files = fs.readdirSync(assetsDir);
+const cssFile = files.find(f => f.endsWith('.css'));
+const jsFile = files.find(f => f.endsWith('.js') && !f.endsWith('.map'));
+
+if (!cssFile || !jsFile) {
+  console.error('Could not find CSS or JS bundle in dist/assets.');
+  process.exit(1);
+}
+
+const cssPath = path.join(assetsDir, cssFile);
+const jsPath = path.join(assetsDir, jsFile);
 
 const cssContent = fs.readFileSync(cssPath, 'utf8');
 const jsContent = fs.readFileSync(jsPath, 'utf8');
@@ -54,5 +64,5 @@ if (fs.existsSync(artifactDir)) {
   fs.writeFileSync(path.join(artifactDir, 'prompt-shorthand-analyzer-v3.3.5-standalone.html'), html, 'utf8');
 }
 
-console.log('Standalone HTML generated successfully!');
+console.log('Standalone HTML generated successfully with bundles:', cssFile, jsFile);
 console.log('File size:', fs.statSync(standalonePath).size, 'bytes');
