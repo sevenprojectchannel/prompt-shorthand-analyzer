@@ -59,6 +59,17 @@ class App {
       hasSearched: false
     };
 
+    // 2 Dunia Config State (V3.5)
+    this.twoWorldsConfig = {
+      customRequest: '',
+      gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      age: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      ethnicity: 'Auto (Smart Detection)',
+      subjectStyle: 'Auto (Smart Detection)',
+      customSubjectStyle: '',
+      environmentStyle: 'Auto (Smart Detection)'
+    };
+
     // Initialize with empty analysis result
     this.analysisResult = this.geminiService.localEngine.getEmptyResult();
 
@@ -146,7 +157,8 @@ class App {
           referencePrompt: promptText,
           visualTelemetry: this.uploadedImage.visualTelemetry,
           targetAspectRatio: targetRatio,
-          isTwoWorlds: this.activeMode === 'TWO_WORLDS'
+          isTwoWorlds: this.activeMode === 'TWO_WORLDS',
+          twoWorldsConfig: this.activeMode === 'TWO_WORLDS' ? this.twoWorldsConfig : null
         });
         result.mode = this.activeMode;
         this.analysisResult = result;
@@ -251,6 +263,15 @@ class App {
     this.currentPrompt = '';
     this.uploadedImage = null;
     this.selectedAspectRatio = 'auto';
+    this.twoWorldsConfig = {
+      customRequest: '',
+      gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      age: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      ethnicity: 'Auto (Smart Detection)',
+      subjectStyle: 'Auto (Smart Detection)',
+      customSubjectStyle: '',
+      environmentStyle: 'Auto (Smart Detection)'
+    };
     this.analysisResult = this.geminiService.localEngine.getEmptyResult();
     this.showToast('Analyzer telah di-reset ke kondisi awal.');
     this.render();
@@ -260,7 +281,35 @@ class App {
     this.currentPrompt = '';
     this.uploadedImage = null;
     this.selectedAspectRatio = 'auto';
+    this.twoWorldsConfig = {
+      customRequest: '',
+      gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      age: 'Auto (Smart Detection) mengikuti gambar unggahan',
+      ethnicity: 'Auto (Smart Detection)',
+      subjectStyle: 'Auto (Smart Detection)',
+      customSubjectStyle: '',
+      environmentStyle: 'Auto (Smart Detection)'
+    };
     this.analysisResult = this.geminiService.localEngine.getEmptyResult();
+    this.render();
+  }
+
+  /**
+   * Menangani pembaruan konfigurasi parameter kustom 2 Dunia (V3.5)
+   * Menyinkronkan PROMPT OPTIMAL secara real-time bila hasil analisis visual sudah ada
+   */
+  handleTwoWorldsConfigChange(newConfig) {
+    this.twoWorldsConfig = { ...this.twoWorldsConfig, ...newConfig };
+    if (this.activeMode === 'TWO_WORLDS' && this.analysisResult && this.analysisResult.visionData) {
+      if (typeof this.geminiService.assembleOptimalImagePrompt === 'function') {
+        this.analysisResult.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
+          this.analysisResult.visionData,
+          this.analysisResult.installedShorthands || [],
+          this.twoWorldsConfig
+        );
+        this.analysisResult.generatedPrompt = this.analysisResult.optimalPrompt;
+      }
+    }
     this.render();
   }
 
@@ -283,7 +332,8 @@ class App {
       if (typeof this.geminiService.assembleOptimalImagePrompt === 'function') {
         this.analysisResult.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
           this.analysisResult.visionData,
-          this.analysisResult.installedShorthands || []
+          this.analysisResult.installedShorthands || [],
+          this.activeMode === 'TWO_WORLDS' ? this.twoWorldsConfig : null
         );
         this.analysisResult.generatedPrompt = this.analysisResult.optimalPrompt;
       }
@@ -393,7 +443,8 @@ class App {
     if ((this.analysisResult.mode === 'IMAGE_TO_PROMPT' || this.analysisResult.mode === 'TWO_WORLDS') && this.analysisResult.visionData) {
       this.analysisResult.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
         this.analysisResult.visionData,
-        newInstalledList
+        newInstalledList,
+        this.analysisResult.mode === 'TWO_WORLDS' ? this.twoWorldsConfig : null
       );
     } else if (this.analysisResult.isImageRepair && this.analysisResult.repairInstructions) {
       let opt = this.analysisResult.repairInstructions.trim();
@@ -693,6 +744,8 @@ class App {
         uploadedImage: this.uploadedImage,
         selectedAspectRatio: this.selectedAspectRatio,
         onAspectRatioChange: (ratio) => this.handleAspectRatioChange(ratio),
+        twoWorldsConfig: this.twoWorldsConfig,
+        onTwoWorldsConfigChange: (newConfig) => this.handleTwoWorldsConfigChange(newConfig),
         onModeChange: (mode) => {
           if (this.activeMode !== mode) {
             this.activeMode = mode;

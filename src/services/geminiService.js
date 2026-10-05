@@ -11,6 +11,7 @@
 import { StorageService } from './storageService.js';
 import { SemanticEngine } from '../lib/semanticEngine.js';
 import { synthesizeDynamicImagePrompt, analyzeCanvasPixels } from '../lib/imageVisualAnalyzer.js';
+import { buildTwoWorldsPromptIntegration } from '../data/twoWorldsData.js';
 
 export const GEMINI_STATUS = {
   CONNECTED: 'CONNECTED',     // 🟢 Tersambung
@@ -913,7 +914,7 @@ Format respons HANYA berupa JSON valid:
    * 
    * --no [negative prompt yang relevan]
    */
-  assembleOptimalImagePrompt(visionData, installedCodes = []) {
+  assembleOptimalImagePrompt(visionData, installedCodes = [], twoWorldsConfig = null) {
     const main = (visionData?.mainDescription || visionData?.generatedPrompt || '').trim() ||
       'Fotografi autentik dengan pencahayaan alami dan detail realistis.';
     const header = main.startsWith('/imagine prompt:') ? main : `/imagine prompt: ${main}`;
@@ -954,6 +955,14 @@ Format respons HANYA berupa JSON valid:
     const parts = [header];
     if (visualDetails) {
       parts.push(visualDetails);
+    }
+
+    // Integrasi Khusus Mode 2 Dunia (Hanya berlaku bila twoWorldsConfig diberikan)
+    if (twoWorldsConfig) {
+      const twoWorldsText = buildTwoWorldsPromptIntegration(twoWorldsConfig, visionData);
+      if (twoWorldsText) {
+        parts.push(twoWorldsText);
+      }
     }
 
     // Section 3: Semua shorthand yang relevan berdasarkan hasil analisa (UNLIMITED)
@@ -1404,7 +1413,7 @@ Format respons HANYA berupa JSON valid:
    * Prompt Optimal -> Maksud Prompt -> Area yang Diubah & Area Dikunci ->
    * Transformasi Visual FROM -> TO -> Shorthand Analysis (5 Kelompok Terpisah)
    */
-  async analyzeImageToPrompt({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', referencePrompt = '', preferredLang = 'id', visualTelemetry = null, targetAspectRatio = 'auto', isTwoWorlds = false }) {
+  async analyzeImageToPrompt({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', referencePrompt = '', preferredLang = 'id', visualTelemetry = null, targetAspectRatio = 'auto', isTwoWorlds = false, twoWorldsConfig = null }) {
     const key = StorageService.getApiKey().trim();
     const model = StorageService.getModel() || 'gemini-2.0-flash';
 
@@ -1469,7 +1478,7 @@ Format respons HANYA berupa JSON valid:
     const installedShorthands = primaryShorthands.map(s => s.code);
 
     // 6. GENERATE PROMPT OPTIMAL FINAL (Struktur Deskriptif + Shorthands Terpasang + Params + Negative Prompt)
-    const optimalPrompt = this.assembleOptimalImagePrompt(visionData, installedShorthands);
+    const optimalPrompt = this.assembleOptimalImagePrompt(visionData, installedShorthands, isTwoWorlds ? twoWorldsConfig : null);
 
     // 7. MAKSUD PROMPT
     const intent = {

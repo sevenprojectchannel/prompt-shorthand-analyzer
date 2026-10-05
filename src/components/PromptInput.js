@@ -8,6 +8,13 @@
 
 import { renderPresetTests } from './PresetTests.js';
 import { analyzeCanvasPixels, detectClosestAspectRatio } from '../lib/imageVisualAnalyzer.js';
+import {
+  TWO_WORLDS_GENDERS,
+  TWO_WORLDS_AGES,
+  TWO_WORLDS_ETHNICITIES,
+  TWO_WORLDS_SUBJECT_STYLES,
+  TWO_WORLDS_ENVIRONMENT_STYLES
+} from '../data/twoWorldsData.js';
 
 export function renderPromptInput({
   currentValue = '',
@@ -23,7 +30,9 @@ export function renderPromptInput({
   onImageSelected,
   onImageRemoved,
   selectedAspectRatio = 'auto',
-  onAspectRatioChange
+  onAspectRatioChange,
+  twoWorldsConfig = null,
+  onTwoWorldsConfigChange
 }) {
   const presets = renderPresetTests(onSelectPreset);
   const detectedRatio = uploadedImage
@@ -166,6 +175,123 @@ export function renderPromptInput({
                   </button>
                 `;
               }).join('')}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 2 DUNIA PARAMETER PANEL (V3.5 PATCH ONLY - KHUSUS TAB 2 DUNIA) -->
+      ${activeMode === 'TWO_WORLDS' ? `
+        <div class="two-worlds-config-panel" id="two-worlds-config-panel">
+          <div class="two-worlds-header">
+            <div class="two-worlds-title">
+              <span>🌐</span>
+              <span>PARAMETER MODIFIKASI KHUSUS 2 DUNIA</span>
+            </div>
+            <span class="two-worlds-badge">SOURCE OF TRUTH V3.5</span>
+          </div>
+
+          <!-- 1. CUSTOM REQUEST -->
+          <div class="two-worlds-field">
+            <label class="two-worlds-label" for="tw-custom-request">
+              <span>✍️</span>
+              <span>1. CUSTOM REQUEST (Instruksi Tambahan)</span>
+            </label>
+            <div class="two-worlds-hint">
+              Instruksi tambahan untuk memodifikasi <strong>PROMPT OPTIMAL</strong>. Karakter/subjek asli tetap dipertahankan utuh kecuali diminta secara eksplisit.
+            </div>
+            <textarea 
+              id="tw-custom-request" 
+              class="two-worlds-textarea" 
+              rows="3" 
+              placeholder="Contoh: Tambahkan subjek manusia realistis di luar subjek yang sudah ada, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan."
+            >${twoWorldsConfig?.customRequest || ''}</textarea>
+          </div>
+
+          <!-- DEMOGRAFI SUBJEK: JENIS KELAMIN, USIA, RAS/ETNIS -->
+          <div class="two-worlds-grid-row">
+            <!-- 2. JENIS KELAMIN SUBYEK -->
+            <div class="two-worlds-field">
+              <label class="two-worlds-label" for="tw-gender">
+                <span>👤</span>
+                <span>2. JENIS KELAMIN SUBYEK</span>
+              </label>
+              <select id="tw-gender" class="two-worlds-select">
+                ${TWO_WORLDS_GENDERS.map(g => `
+                  <option value="${g}" ${(twoWorldsConfig?.gender === g || (!twoWorldsConfig?.gender && g.startsWith('Auto'))) ? 'selected' : ''}>${g}</option>
+                `).join('')}
+              </select>
+              <div class="two-worlds-hint">Diterapkan pada subjek/karakter tambahan atau karakter yang diminta.</div>
+            </div>
+
+            <!-- 3. USIA KARAKTER -->
+            <div class="two-worlds-field">
+              <label class="two-worlds-label" for="tw-age">
+                <span>🎂</span>
+                <span>3. USIA KARAKTER</span>
+              </label>
+              <select id="tw-age" class="two-worlds-select">
+                ${TWO_WORLDS_AGES.map(a => `
+                  <option value="${a}" ${(twoWorldsConfig?.age === a || (!twoWorldsConfig?.age && a.startsWith('Auto'))) ? 'selected' : ''}>${a}</option>
+                `).join('')}
+              </select>
+              <div class="two-worlds-hint">Pilihan Auto atau 1 s/d 50 tahun untuk karakter yang dibuat.</div>
+            </div>
+
+            <!-- 4. RAS / ETNIS -->
+            <div class="two-worlds-field">
+              <label class="two-worlds-label" for="tw-ethnicity">
+                <span>🌍</span>
+                <span>4. RAS / ETNIS</span>
+              </label>
+              <select id="tw-ethnicity" class="two-worlds-select">
+                ${TWO_WORLDS_ETHNICITIES.map(e => `
+                  <option value="${e}" ${(twoWorldsConfig?.ethnicity === e || (!twoWorldsConfig?.ethnicity && e.startsWith('Auto'))) ? 'selected' : ''}>${e}</option>
+                `).join('')}
+              </select>
+              <div class="two-worlds-hint">Auto (Smart Detection) atau etnis spesifik karakter.</div>
+            </div>
+          </div>
+
+          <!-- VISUAL STYLE: STYLE SUBYEK & ENVIRONMENT STYLE -->
+          <div class="two-worlds-grid-row">
+            <!-- 5. STYLE SUBYEK -->
+            <div class="two-worlds-field">
+              <label class="two-worlds-label" for="tw-subject-style">
+                <span>🎨</span>
+                <span>5. STYLE SUBYEK</span>
+              </label>
+              <select id="tw-subject-style" class="two-worlds-select">
+                ${TWO_WORLDS_SUBJECT_STYLES.map(s => `
+                  <option value="${s}" ${(twoWorldsConfig?.subjectStyle === s || (!twoWorldsConfig?.subjectStyle && s.startsWith('Auto'))) ? 'selected' : ''}>${s}</option>
+                `).join('')}
+              </select>
+              <input 
+                type="text" 
+                id="tw-custom-subject-style" 
+                class="two-worlds-input" 
+                placeholder="Ketik style subjek custom (misal: Neo-Renaissance Oil Painting)..." 
+                value="${twoWorldsConfig?.customSubjectStyle || ''}" 
+                style="display: ${twoWorldsConfig?.subjectStyle === 'Custom' ? 'block' : 'none'}; margin-top: 0.35rem;" 
+              />
+              <div class="two-worlds-hint">Hanya mengontrol tampilan visual, materialitas, rendering, dan tekstur subjek.</div>
+            </div>
+
+            <!-- 6. ENVIRONMENT STYLE -->
+            <div class="two-worlds-field">
+              <label class="two-worlds-label" for="tw-env-style">
+                <span>🏞️</span>
+                <span>6. ENVIRONMENT STYLE</span>
+              </label>
+              <select id="tw-env-style" class="two-worlds-select">
+                ${TWO_WORLDS_ENVIRONMENT_STYLES.map(env => `
+                  <option value="${env.name}" ${(twoWorldsConfig?.environmentStyle === env.name || (!twoWorldsConfig?.environmentStyle && env.name.startsWith('Auto'))) ? 'selected' : ''}>${env.name}</option>
+                `).join('')}
+              </select>
+              <div class="two-worlds-desc-box" id="tw-env-desc">
+                ${(TWO_WORLDS_ENVIRONMENT_STYLES.find(e => e.name === (twoWorldsConfig?.environmentStyle || 'Auto (Smart Detection)'))?.description) || 'Sistem mendeteksi dan menentukan style lingkungan paling harmonis berdasarkan gambar sumber.'}
+              </div>
+              <div class="two-worlds-hint">Mengontrol estetika latar belakang &amp; atmosfer. Subjek asli tetap dipertahankan.</div>
             </div>
           </div>
         </div>
@@ -450,6 +576,67 @@ export function renderPromptInput({
             if (onAnalyze) onAnalyze(textarea.value);
           }
         });
+      }
+
+      // 2 Dunia Tab Specific Event Listeners (V3.5)
+      if (activeMode === 'TWO_WORLDS') {
+        const twCustomReq = container.querySelector('#tw-custom-request');
+        const twGender = container.querySelector('#tw-gender');
+        const twAge = container.querySelector('#tw-age');
+        const twEthnicity = container.querySelector('#tw-ethnicity');
+        const twSubjectStyle = container.querySelector('#tw-subject-style');
+        const twCustomSubjectStyle = container.querySelector('#tw-custom-subject-style');
+        const twEnvStyle = container.querySelector('#tw-env-style');
+        const twEnvDesc = container.querySelector('#tw-env-desc');
+
+        const triggerTwUpdate = () => {
+          if (!onTwoWorldsConfigChange) return;
+          onTwoWorldsConfigChange({
+            customRequest: twCustomReq ? twCustomReq.value : '',
+            gender: twGender ? twGender.value : 'Auto (Smart Detection) mengikuti gambar unggahan',
+            age: twAge ? twAge.value : 'Auto (Smart Detection) mengikuti gambar unggahan',
+            ethnicity: twEthnicity ? twEthnicity.value : 'Auto (Smart Detection)',
+            subjectStyle: twSubjectStyle ? twSubjectStyle.value : 'Auto (Smart Detection)',
+            customSubjectStyle: twCustomSubjectStyle ? twCustomSubjectStyle.value : '',
+            environmentStyle: twEnvStyle ? twEnvStyle.value : 'Auto (Smart Detection)'
+          });
+        };
+
+        if (twCustomReq) {
+          twCustomReq.addEventListener('input', triggerTwUpdate);
+        }
+        if (twGender) {
+          twGender.addEventListener('change', triggerTwUpdate);
+        }
+        if (twAge) {
+          twAge.addEventListener('change', triggerTwUpdate);
+        }
+        if (twEthnicity) {
+          twEthnicity.addEventListener('change', triggerTwUpdate);
+        }
+        if (twSubjectStyle) {
+          twSubjectStyle.addEventListener('change', () => {
+            const isCustom = twSubjectStyle.value === 'Custom';
+            if (twCustomSubjectStyle) {
+              twCustomSubjectStyle.style.display = isCustom ? 'block' : 'none';
+              if (isCustom) twCustomSubjectStyle.focus();
+            }
+            triggerTwUpdate();
+          });
+        }
+        if (twCustomSubjectStyle) {
+          twCustomSubjectStyle.addEventListener('input', triggerTwUpdate);
+        }
+        if (twEnvStyle) {
+          twEnvStyle.addEventListener('change', () => {
+            const selectedStyle = twEnvStyle.value;
+            const matched = TWO_WORLDS_ENVIRONMENT_STYLES.find(e => e.name === selectedStyle);
+            if (twEnvDesc) {
+              twEnvDesc.textContent = matched ? matched.description : '';
+            }
+            triggerTwUpdate();
+          });
+        }
       }
     }
   };

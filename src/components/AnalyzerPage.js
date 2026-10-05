@@ -39,7 +39,9 @@ export function renderAnalyzerPage({
   onToggleRecommendation,
   onResolveConflict,
   selectedAspectRatio = 'auto',
-  onAspectRatioChange
+  onAspectRatioChange,
+  twoWorldsConfig = null,
+  onTwoWorldsConfigChange
 }) {
   const {
     optimalPrompt = '',
@@ -96,7 +98,9 @@ export function renderAnalyzerPage({
     onImageSelected,
     onImageRemoved,
     selectedAspectRatio,
-    onAspectRatioChange
+    onAspectRatioChange,
+    twoWorldsConfig,
+    onTwoWorldsConfigChange
   });
 
   const conflictBannerComp = renderConflictBanner(conflicts, onResolveConflict, activeMode);

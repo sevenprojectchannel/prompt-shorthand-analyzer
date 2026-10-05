@@ -18,6 +18,14 @@ import { renderPromptInput } from '../src/components/PromptInput.js';
 import { renderAnalyzerPage } from '../src/components/AnalyzerPage.js';
 import { renderShorthandRecommendations } from '../src/components/ShorthandRecommendations.js';
 import { detectClosestAspectRatio, synthesizeDynamicImagePrompt, SUPPORTED_ASPECT_RATIOS } from '../src/lib/imageVisualAnalyzer.js';
+import {
+  TWO_WORLDS_GENDERS,
+  TWO_WORLDS_AGES,
+  TWO_WORLDS_ETHNICITIES,
+  TWO_WORLDS_SUBJECT_STYLES,
+  TWO_WORLDS_ENVIRONMENT_STYLES,
+  buildTwoWorldsPromptIntegration
+} from '../src/data/twoWorldsData.js';
 
 const engine = new SemanticEngine(INITIAL_SHORTHAND_CATALOG);
 
@@ -1983,6 +1991,134 @@ console.log('\n--- V3.5: FITUR CLONING TAB "2 DUNIA" TEST ---');
   assert(analyzerPage.html.includes('card-intent'), 'Merender card-intent');
   assert(analyzerPage.html.includes('card-transformation'), 'Merender card-transformation');
   assert(analyzerPage.html.includes('card-primary-shorthands'), 'Merender card-primary-shorthands');
+}
+
+// -----------------------------------------------------------------------------
+// TEST V3.5: FITUR KHUSUS TAB "2 DUNIA" (6 PARAMETER KUSTOMISASI)
+// -----------------------------------------------------------------------------
+console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
+{
+  // 1. Data Definitions Check
+  assert(Array.isArray(TWO_WORLDS_GENDERS) && TWO_WORLDS_GENDERS.length === 3, 'TWO_WORLDS_GENDERS memiliki 3 pilihan (Auto, Pria, Wanita)');
+  assert(TWO_WORLDS_GENDERS.includes('Auto (Smart Detection) mengikuti gambar unggahan'), 'Gender memuat opsi Auto (Smart Detection)');
+  assert(TWO_WORLDS_GENDERS.includes('Pria') && TWO_WORLDS_GENDERS.includes('Wanita'), 'Gender memuat opsi Pria dan Wanita');
+
+  assert(Array.isArray(TWO_WORLDS_AGES) && TWO_WORLDS_AGES.length === 51, 'TWO_WORLDS_AGES memuat 51 pilihan (Auto + 1 s/d 50 tahun)');
+  assert(TWO_WORLDS_AGES[0] === 'Auto (Smart Detection) mengikuti gambar unggahan', 'Usia opsi 0 adalah Auto (Smart Detection)');
+  assert(TWO_WORLDS_AGES[1] === '1 tahun' && TWO_WORLDS_AGES[50] === '50 tahun', 'Usia opsi 1-50 tahun lengkap');
+
+  assert(Array.isArray(TWO_WORLDS_ETHNICITIES) && TWO_WORLDS_ETHNICITIES.length === 10, 'TWO_WORLDS_ETHNICITIES memuat 10 opsi etnis');
+  assert(TWO_WORLDS_ETHNICITIES.includes('Auto (Smart Detection)'), 'Etnis memuat Auto');
+  assert(TWO_WORLDS_ETHNICITIES.includes('Asia') && TWO_WORLDS_ETHNICITIES.includes('Eropa') && TWO_WORLDS_ETHNICITIES.includes('Amerika Latin'), 'Etnis memuat pilihan regional');
+
+  assert(Array.isArray(TWO_WORLDS_SUBJECT_STYLES) && TWO_WORLDS_SUBJECT_STYLES.length === 7, 'TWO_WORLDS_SUBJECT_STYLES memuat 7 opsi');
+  assert(TWO_WORLDS_SUBJECT_STYLES.includes('Auto (Smart Detection)') && TWO_WORLDS_SUBJECT_STYLES.includes('Custom'), 'Subject style memuat Auto dan Custom');
+  assert(TWO_WORLDS_SUBJECT_STYLES.includes('Raw Photography Realism') && TWO_WORLDS_SUBJECT_STYLES.includes('Photorealistic'), 'Subject style memuat opsi realism');
+
+  assert(Array.isArray(TWO_WORLDS_ENVIRONMENT_STYLES) && TWO_WORLDS_ENVIRONMENT_STYLES.length === 93, 'TWO_WORLDS_ENVIRONMENT_STYLES memuat 93 opsi terstruktur (Auto + 92 curated styles)');
+  const spongebobStyle = TWO_WORLDS_ENVIRONMENT_STYLES.find(e => e.name === 'SpongeBob Cinematic 3D');
+  assert(Boolean(spongebobStyle && spongebobStyle.description), 'Environment style memiliki deskripsi valid (SpongeBob Cinematic 3D)');
+
+  // 2. buildTwoWorldsPromptIntegration Logic Check
+  const sampleConfig = {
+    customRequest: 'Tambahkan subjek manusia realistis di luar subjek yang sudah ada, dengan pakaian yang menyesuaikan.',
+    gender: 'Wanita',
+    age: '25 tahun',
+    ethnicity: 'Asia',
+    subjectStyle: 'Photorealistic',
+    customSubjectStyle: '',
+    environmentStyle: 'SpongeBob Cinematic 3D'
+  };
+
+  const integrationText = buildTwoWorldsPromptIntegration(sampleConfig);
+  assert(integrationText.includes('Instruksi Tambahan (Custom Request):'), 'Mengintegrasikan Custom Request');
+  assert(integrationText.includes('Tambahkan subjek manusia realistis'), 'Memuat isi teks Custom Request asli');
+  assert(integrationText.includes('jenis kelamin: Wanita'), 'Memuat parameter jenis kelamin Wanita');
+  assert(integrationText.includes('usia: 25 tahun'), 'Memuat parameter usia 25 tahun');
+  assert(integrationText.includes('ras/etnis: Asia'), 'Memuat parameter etnis Asia');
+  assert(integrationText.includes('Style Subjek (Subject Style):') && integrationText.includes('Photorealistic'), 'Memuat Style Subjek Photorealistic');
+  assert(integrationText.includes('Style Lingkungan (Environment Style):') && integrationText.includes('SpongeBob Cinematic 3D'), 'Memuat Environment Style SpongeBob Cinematic 3D');
+  assert(integrationText.includes('tanpa perubahan atau penghapusan'), 'Menjaga integritas subjek asli');
+
+  // Custom Subject Style test
+  const customStyleConfig = {
+    customRequest: '',
+    gender: 'Pria',
+    age: '30 tahun',
+    ethnicity: 'Eropa',
+    subjectStyle: 'Custom',
+    customSubjectStyle: 'Cyberpunk Hyper-Detail',
+    environmentStyle: 'Auto (Smart Detection)'
+  };
+  const customStyleText = buildTwoWorldsPromptIntegration(customStyleConfig);
+  assert(customStyleText.includes('Cyberpunk Hyper-Detail'), 'Custom Subject Style terintegrasi ke prompt saat dipilih');
+  assert(!customStyleText.includes('Style Lingkungan'), 'Environment Style Auto tidak menambahkan klausul berlebih');
+
+  // 3. Prompt Optimal Full Assembly Order Check
+  const geminiSvc = new GeminiService(INITIAL_SHORTHAND_CATALOG);
+  const dummyVisionData = {
+    mainDescription: 'Dua orang berada di taman tropis dengan latar belakang pemandangan alam.',
+    visualDetails: 'Detail subjek utama dengan pencahayaan alami dan warna cerah.',
+    aspectRatio: '16:9'
+  };
+
+  const assembledPrompt = geminiSvc.assembleOptimalImagePrompt(dummyVisionData, ['/naturalportraits', '/daylightnatural'], sampleConfig);
+  assert(assembledPrompt.includes('/imagine prompt: Dua orang berada di taman tropis'), 'Urutan 1: Header Prompt asli di awal');
+  assert(assembledPrompt.includes('Detail subjek utama dengan pencahayaan alami'), 'Urutan 2: Hasil analisis gambar mengikuti');
+  assert(assembledPrompt.includes('Instruksi Tambahan (Custom Request):'), 'Urutan 3: Custom Request terintegrasi');
+  assert(assembledPrompt.includes('Parameter Karakter Subjek:'), 'Urutan 4: Demografi Subjek terintegrasi');
+  assert(assembledPrompt.includes('Style Subjek (Subject Style):'), 'Urutan 5: Style Subjek terintegrasi');
+  assert(assembledPrompt.includes('Style Lingkungan (Environment Style):'), 'Urutan 6: Environment Style terintegrasi');
+  assert(assembledPrompt.includes('/naturalportraits /daylightnatural --ar 16:9 --style raw --v 6.1'), 'Urutan 7: Shorthand terpasang dan teknis parameter terintegrasi');
+  assert(assembledPrompt.includes('--no '), 'Urutan 8: Negative prompt di akhir');
+
+  // Verify exact index ordering
+  const idxHeader = assembledPrompt.indexOf('/imagine prompt:');
+  const idxDetails = assembledPrompt.indexOf('Detail subjek utama');
+  const idxCustom = assembledPrompt.indexOf('Instruksi Tambahan (Custom Request):');
+  const idxDemo = assembledPrompt.indexOf('Parameter Karakter Subjek:');
+  const idxSubStyle = assembledPrompt.indexOf('Style Subjek (Subject Style):');
+  const idxEnvStyle = assembledPrompt.indexOf('Style Lingkungan (Environment Style):');
+  const idxShorthands = assembledPrompt.indexOf('/naturalportraits');
+  const idxNegative = assembledPrompt.indexOf('--no ');
+
+  assert(idxHeader < idxDetails, 'Urutan: Prompt asli < Hasil analisis visual');
+  assert(idxDetails < idxCustom, 'Urutan: Hasil analisis visual < Custom Request');
+  assert(idxCustom < idxDemo, 'Urutan: Custom Request < Parameter Karakter (Gender/Age/Ethnicity)');
+  assert(idxDemo < idxSubStyle, 'Urutan: Parameter Karakter < Style Subjek');
+  assert(idxSubStyle < idxEnvStyle, 'Urutan: Style Subjek < Environment Style');
+  assert(idxEnvStyle < idxShorthands, 'Urutan: Environment Style < Shorthands');
+  assert(idxShorthands < idxNegative, 'Urutan: Shorthands < Negative Prompt');
+
+  // 4. Isolation Check (Mode lain tidak terpengaruh sama sekali)
+  const nonTwoWorldsPrompt = geminiSvc.assembleOptimalImagePrompt(dummyVisionData, ['/sharpen'], null);
+  assert(!nonTwoWorldsPrompt.includes('Instruksi Tambahan'), 'Mode default TIDAK memuat Custom Request');
+  assert(!nonTwoWorldsPrompt.includes('Parameter Karakter Subjek'), 'Mode default TIDAK memuat Parameter Karakter');
+  assert(!nonTwoWorldsPrompt.includes('Style Subjek (Subject Style)'), 'Mode default TIDAK memuat Style Subjek tambahan');
+  assert(!nonTwoWorldsPrompt.includes('Style Lingkungan (Environment Style)'), 'Mode default TIDAK memuat Environment Style tambahan');
+
+  // 5. PromptInput UI Rendering Isolation & Integration Check
+  const twoWorldsInput = renderPromptInput({
+    activeMode: 'TWO_WORLDS',
+    twoWorldsConfig: sampleConfig
+  });
+  assert(twoWorldsInput.html.includes('id="two-worlds-config-panel"'), 'PromptInput me-render #two-worlds-config-panel pada mode TWO_WORLDS');
+  assert(twoWorldsInput.html.includes('id="tw-custom-request"'), 'PromptInput me-render #tw-custom-request');
+  assert(twoWorldsInput.html.includes('id="tw-gender"'), 'PromptInput me-render #tw-gender');
+  assert(twoWorldsInput.html.includes('id="tw-age"'), 'PromptInput me-render #tw-age');
+  assert(twoWorldsInput.html.includes('id="tw-ethnicity"'), 'PromptInput me-render #tw-ethnicity');
+  assert(twoWorldsInput.html.includes('id="tw-subject-style"'), 'PromptInput me-render #tw-subject-style');
+  assert(twoWorldsInput.html.includes('id="tw-custom-subject-style"'), 'PromptInput me-render #tw-custom-subject-style');
+  assert(twoWorldsInput.html.includes('id="tw-env-style"'), 'PromptInput me-render #tw-env-style');
+  assert(twoWorldsInput.html.includes('id="tw-env-desc"'), 'PromptInput me-render #tw-env-desc');
+
+  // Tab lain bebas dari 2 Dunia panel
+  const mode1Input = renderPromptInput({ activeMode: 'ANALISA_PROMPT' });
+  assert(!mode1Input.html.includes('id="two-worlds-config-panel"'), 'Tab Analisa Prompt TIDAK me-render panel 2 Dunia');
+  const mode2Input = renderPromptInput({ activeMode: 'IMAGE_TO_PROMPT' });
+  assert(!mode2Input.html.includes('id="two-worlds-config-panel"'), 'Tab Analisa Gambar → Prompt TIDAK me-render panel 2 Dunia');
+  const mode3Input = renderPromptInput({ activeMode: 'SHORTHAND_IMPROVE' });
+  assert(!mode3Input.html.includes('id="two-worlds-config-panel"'), 'Tab Perbaikan Gambar TIDAK me-render panel 2 Dunia');
 }
 
 console.log('\n==================================================');
