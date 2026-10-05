@@ -9,6 +9,7 @@
 import { renderPresetTests } from './PresetTests.js';
 import { analyzeCanvasPixels, detectClosestAspectRatio } from '../lib/imageVisualAnalyzer.js';
 import {
+  TWO_WORLDS_PROMPT_TEMPLATES,
   TWO_WORLDS_GENDERS,
   TWO_WORLDS_AGES,
   TWO_WORLDS_ETHNICITIES,
@@ -200,6 +201,20 @@ export function renderPromptInput({
             <div class="two-worlds-hint">
               Instruksi tambahan untuk memodifikasi <strong>PROMPT OPTIMAL</strong>. Karakter/subjek asli tetap dipertahankan utuh kecuali diminta secara eksplisit.
             </div>
+
+            <!-- PROMPT TEMPLATES (Dropdown Pilihan Cepat Template) -->
+            <div style="margin-top: 0.5rem; margin-bottom: 0.45rem;">
+              <label class="two-worlds-label" for="tw-prompt-template" style="font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                <span>📋</span>
+                <span>PROMPT TEMPLATES:</span>
+              </label>
+              <select id="tw-prompt-template" class="two-worlds-select" style="font-size: 0.8rem; padding: 0.45rem 0.65rem;">
+                ${TWO_WORLDS_PROMPT_TEMPLATES.map(tpl => `
+                  <option value="${tpl.id}">${tpl.label}</option>
+                `).join('')}
+              </select>
+            </div>
+
             <textarea 
               id="tw-custom-request" 
               class="two-worlds-textarea" 
@@ -580,6 +595,7 @@ export function renderPromptInput({
 
       // 2 Dunia Tab Specific Event Listeners (V3.5)
       if (activeMode === 'TWO_WORLDS') {
+        const twPromptTemplate = container.querySelector('#tw-prompt-template');
         const twCustomReq = container.querySelector('#tw-custom-request');
         const twGender = container.querySelector('#tw-gender');
         const twAge = container.querySelector('#tw-age');
@@ -602,8 +618,29 @@ export function renderPromptInput({
           });
         };
 
+        if (twPromptTemplate) {
+          twPromptTemplate.addEventListener('change', () => {
+            const selectedVal = twPromptTemplate.value;
+            const matched = TWO_WORLDS_PROMPT_TEMPLATES.find(t => t.id === selectedVal);
+            if (matched && matched.id !== 'none' && matched.text && twCustomReq) {
+              twCustomReq.value = matched.text;
+              triggerTwUpdate();
+            }
+          });
+        }
+
         if (twCustomReq) {
-          twCustomReq.addEventListener('input', triggerTwUpdate);
+          twCustomReq.addEventListener('input', () => {
+            // Jika pengguna mengedit teks secara manual dan tidak persis sama dengan template aktif,
+            // kembalikan pilihan dropdown ke 'none' agar template tetap dapat dipilih kembali kapan saja.
+            if (twPromptTemplate && twPromptTemplate.value !== 'none') {
+              const currentTpl = TWO_WORLDS_PROMPT_TEMPLATES.find(t => t.id === twPromptTemplate.value);
+              if (currentTpl && twCustomReq.value !== currentTpl.text) {
+                twPromptTemplate.value = 'none';
+              }
+            }
+            triggerTwUpdate();
+          });
         }
         if (twGender) {
           twGender.addEventListener('change', triggerTwUpdate);

@@ -19,6 +19,7 @@ import { renderAnalyzerPage } from '../src/components/AnalyzerPage.js';
 import { renderShorthandRecommendations } from '../src/components/ShorthandRecommendations.js';
 import { detectClosestAspectRatio, synthesizeDynamicImagePrompt, SUPPORTED_ASPECT_RATIOS } from '../src/lib/imageVisualAnalyzer.js';
 import {
+  TWO_WORLDS_PROMPT_TEMPLATES,
   TWO_WORLDS_GENDERS,
   TWO_WORLDS_AGES,
   TWO_WORLDS_ETHNICITIES,
@@ -2103,6 +2104,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
     twoWorldsConfig: sampleConfig
   });
   assert(twoWorldsInput.html.includes('id="two-worlds-config-panel"'), 'PromptInput me-render #two-worlds-config-panel pada mode TWO_WORLDS');
+  assert(twoWorldsInput.html.includes('id="tw-prompt-template"'), 'PromptInput me-render #tw-prompt-template dropdown PROMPT TEMPLATES');
   assert(twoWorldsInput.html.includes('id="tw-custom-request"'), 'PromptInput me-render #tw-custom-request');
   assert(twoWorldsInput.html.includes('id="tw-gender"'), 'PromptInput me-render #tw-gender');
   assert(twoWorldsInput.html.includes('id="tw-age"'), 'PromptInput me-render #tw-age');
@@ -2112,13 +2114,83 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   assert(twoWorldsInput.html.includes('id="tw-env-style"'), 'PromptInput me-render #tw-env-style');
   assert(twoWorldsInput.html.includes('id="tw-env-desc"'), 'PromptInput me-render #tw-env-desc');
 
-  // Tab lain bebas dari 2 Dunia panel
+  // Tab lain bebas dari 2 Dunia panel dan bebas dari PROMPT TEMPLATES
   const mode1Input = renderPromptInput({ activeMode: 'ANALISA_PROMPT' });
   assert(!mode1Input.html.includes('id="two-worlds-config-panel"'), 'Tab Analisa Prompt TIDAK me-render panel 2 Dunia');
+  assert(!mode1Input.html.includes('id="tw-prompt-template"'), 'Tab Analisa Prompt TIDAK me-render dropdown PROMPT TEMPLATES');
   const mode2Input = renderPromptInput({ activeMode: 'IMAGE_TO_PROMPT' });
   assert(!mode2Input.html.includes('id="two-worlds-config-panel"'), 'Tab Analisa Gambar → Prompt TIDAK me-render panel 2 Dunia');
+  assert(!mode2Input.html.includes('id="tw-prompt-template"'), 'Tab Analisa Gambar → Prompt TIDAK me-render dropdown PROMPT TEMPLATES');
   const mode3Input = renderPromptInput({ activeMode: 'SHORTHAND_IMPROVE' });
   assert(!mode3Input.html.includes('id="two-worlds-config-panel"'), 'Tab Perbaikan Gambar TIDAK me-render panel 2 Dunia');
+  assert(!mode3Input.html.includes('id="tw-prompt-template"'), 'Tab Perbaikan Gambar TIDAK me-render dropdown PROMPT TEMPLATES');
+
+  // 6. PROMPT TEMPLATES Library Content & Structure Check
+  assert(Array.isArray(TWO_WORLDS_PROMPT_TEMPLATES), 'TWO_WORLDS_PROMPT_TEMPLATES adalah array');
+  assert(TWO_WORLDS_PROMPT_TEMPLATES.length === 6, 'Memuat 6 item (1 default placeholder + 5 template resmi)');
+  assert(TWO_WORLDS_PROMPT_TEMPLATES[0].id === 'none', 'Item pertama adalah placeholder opsional');
+
+  const expectedTemplates = [
+    'Tambahkan subjek manusia realistis di luar subjek yang sudah ada, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.',
+    'Tambahkan subjek manusia realistis dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.',
+    'Tambahkan subjek manusia realistis dan pertahankan seluruh subjek serta karakter yang sudah ada dalam gambar. Jangan memodifikasi atau menghilangkan subjek/karakter asli. Latar belakang menyesuaikan dengan gambar unggahan.',
+    'Tambahkan subjek baru yang mengenakan hijab, lalu sesuaikan outfit dan warna agar harmonis dengan gambar unggahan.',
+    'Tambahkan subjek manusia realistis yang mengenakan hijab, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+  ];
+
+  for (let i = 0; i < expectedTemplates.length; i++) {
+    const tpl = TWO_WORLDS_PROMPT_TEMPLATES[i + 1];
+    assert(tpl && tpl.text === expectedTemplates[i], `Template ${i + 1} memuat teks persis sesuai spesifikasi`);
+  }
+
+  // 7. Event Simulation Test: Memilih template mengisi customRequest dan mengedit manual mereset dropdown
+  let lastDispatchedConfig = null;
+  const mockContainer = {
+    elements: {},
+    querySelector(sel) {
+      if (!this.elements[sel]) {
+        const listeners = {};
+        this.elements[sel] = {
+          value: '',
+          listeners,
+          addEventListener(evt, fn) {
+            listeners[evt] = fn;
+          },
+          trigger(evt) {
+            if (listeners[evt]) listeners[evt]();
+          }
+        };
+      }
+      return this.elements[sel];
+    },
+    querySelectorAll() { return []; }
+  };
+
+  const inputWithEvents = renderPromptInput({
+    activeMode: 'TWO_WORLDS',
+    onTwoWorldsConfigChange: (cfg) => {
+      lastDispatchedConfig = cfg;
+    }
+  });
+
+  inputWithEvents.bindEvents(mockContainer);
+
+  const tplSelect = mockContainer.querySelector('#tw-prompt-template');
+  const customTextArea = mockContainer.querySelector('#tw-custom-request');
+
+  // Pilih template 1
+  tplSelect.value = 'tpl_1';
+  tplSelect.trigger('change');
+
+  assert(customTextArea.value === expectedTemplates[0], 'Memilih tpl_1 otomatis mengisi textarea dengan Template 1');
+  assert(lastDispatchedConfig && lastDispatchedConfig.customRequest === expectedTemplates[0], 'Config ter-update dengan teks Template 1');
+
+  // Edit manual textarea
+  customTextArea.value = expectedTemplates[0] + ' (diedit)';
+  customTextArea.trigger('input');
+
+  assert(tplSelect.value === 'none', 'Mengedit textarea secara manual mengembalikan pilihan dropdown ke none agar template dapat dipilih ulang');
+  assert(lastDispatchedConfig && lastDispatchedConfig.customRequest.includes('(diedit)'), 'Config ter-update dengan hasil editan manual');
 }
 
 console.log('\n==================================================');

@@ -11,6 +11,39 @@
  * Seluruh data ini HANYA digunakan pada tab "2 Dunia" dan tidak memengaruhi tab lain.
  */
 
+export const TWO_WORLDS_PROMPT_TEMPLATES = [
+  {
+    id: 'none',
+    label: '-- Pilih Template Prompt (Opsional) --',
+    text: ''
+  },
+  {
+    id: 'tpl_1',
+    label: 'Template 1: Tambahkan subjek manusia realistis di luar subjek yang sudah ada...',
+    text: 'Tambahkan subjek manusia realistis di luar subjek yang sudah ada, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+  },
+  {
+    id: 'tpl_2',
+    label: 'Template 2: Tambahkan subjek manusia realistis dengan pakaian yang menyesuaikan...',
+    text: 'Tambahkan subjek manusia realistis dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+  },
+  {
+    id: 'tpl_3',
+    label: 'Template 3: Tambahkan subjek manusia realistis dan pertahankan seluruh subjek...',
+    text: 'Tambahkan subjek manusia realistis dan pertahankan seluruh subjek serta karakter yang sudah ada dalam gambar. Jangan memodifikasi atau menghilangkan subjek/karakter asli. Latar belakang menyesuaikan dengan gambar unggahan.'
+  },
+  {
+    id: 'tpl_4',
+    label: 'Template 4: Tambahkan subjek baru yang mengenakan hijab...',
+    text: 'Tambahkan subjek baru yang mengenakan hijab, lalu sesuaikan outfit dan warna agar harmonis dengan gambar unggahan.'
+  },
+  {
+    id: 'tpl_5',
+    label: 'Template 5: Tambahkan subjek manusia realistis yang mengenakan hijab...',
+    text: 'Tambahkan subjek manusia realistis yang mengenakan hijab, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+  }
+];
+
 export const TWO_WORLDS_GENDERS = [
   'Auto (Smart Detection) mengikuti gambar unggahan',
   'Laki-Laki',
