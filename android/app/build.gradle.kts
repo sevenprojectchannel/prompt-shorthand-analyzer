@@ -10,7 +10,7 @@ android {
         applicationId = "com.sevenprojectchannel.promptshorthand.v35"
         minSdk = 24
         targetSdk = 34
-        versionCode = 350
+        versionCode = 351
         versionName = "3.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

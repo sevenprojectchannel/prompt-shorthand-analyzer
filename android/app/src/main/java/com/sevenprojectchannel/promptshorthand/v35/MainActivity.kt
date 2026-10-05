@@ -110,7 +110,8 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = WebSettings.LOAD_NO_CACHE
+            webView.clearCache(true)
             allowFileAccess = true
             allowContentAccess = true
             @Suppress("DEPRECATION")
