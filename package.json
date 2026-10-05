@@ -10,7 +10,8 @@
     "test": "node test/run-tests.js",
     "android:sync": "npm run build && node scripts/sync-android-assets.js",
     "android:apk:debug": "cd android && gradlew.bat assembleDebug",
-    "android:apk:release": "cd android && gradlew.bat assembleRelease"
+    "android:apk:release": "cd android && gradlew.bat assembleRelease",
+    "build:standalone": "npm run build && node scripts/build-standalone-html.js"
   },
   "devDependencies": {
     "vite": "^6.2.0"
