@@ -1999,9 +1999,9 @@ console.log('\n--- V3.5: FITUR CLONING TAB "2 DUNIA" TEST ---');
 console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
 {
   // 1. Data Definitions Check
-  assert(Array.isArray(TWO_WORLDS_GENDERS) && TWO_WORLDS_GENDERS.length === 3, 'TWO_WORLDS_GENDERS memiliki 3 pilihan (Auto, Pria, Wanita)');
+  assert(Array.isArray(TWO_WORLDS_GENDERS) && TWO_WORLDS_GENDERS.length === 3, 'TWO_WORLDS_GENDERS memiliki 3 pilihan (Auto, Laki-Laki, Perempuan)');
   assert(TWO_WORLDS_GENDERS.includes('Auto (Smart Detection) mengikuti gambar unggahan'), 'Gender memuat opsi Auto (Smart Detection)');
-  assert(TWO_WORLDS_GENDERS.includes('Pria') && TWO_WORLDS_GENDERS.includes('Wanita'), 'Gender memuat opsi Pria dan Wanita');
+  assert(TWO_WORLDS_GENDERS.includes('Laki-Laki') && TWO_WORLDS_GENDERS.includes('Perempuan'), 'Gender memuat opsi Laki-Laki dan Perempuan');
 
   assert(Array.isArray(TWO_WORLDS_AGES) && TWO_WORLDS_AGES.length === 51, 'TWO_WORLDS_AGES memuat 51 pilihan (Auto + 1 s/d 50 tahun)');
   assert(TWO_WORLDS_AGES[0] === 'Auto (Smart Detection) mengikuti gambar unggahan', 'Usia opsi 0 adalah Auto (Smart Detection)');
@@ -2022,7 +2022,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   // 2. buildTwoWorldsPromptIntegration Logic Check
   const sampleConfig = {
     customRequest: 'Tambahkan subjek manusia realistis di luar subjek yang sudah ada, dengan pakaian yang menyesuaikan.',
-    gender: 'Wanita',
+    gender: 'Perempuan',
     age: '25 tahun',
     ethnicity: 'Asia',
     subjectStyle: 'Photorealistic',
@@ -2033,7 +2033,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   const integrationText = buildTwoWorldsPromptIntegration(sampleConfig);
   assert(integrationText.includes('Instruksi Tambahan (Custom Request):'), 'Mengintegrasikan Custom Request');
   assert(integrationText.includes('Tambahkan subjek manusia realistis'), 'Memuat isi teks Custom Request asli');
-  assert(integrationText.includes('jenis kelamin: Wanita'), 'Memuat parameter jenis kelamin Wanita');
+  assert(integrationText.includes('jenis kelamin: Perempuan'), 'Memuat parameter jenis kelamin Perempuan');
   assert(integrationText.includes('usia: 25 tahun'), 'Memuat parameter usia 25 tahun');
   assert(integrationText.includes('ras/etnis: Asia'), 'Memuat parameter etnis Asia');
   assert(integrationText.includes('Style Subjek (Subject Style):') && integrationText.includes('Photorealistic'), 'Memuat Style Subjek Photorealistic');
@@ -2043,7 +2043,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   // Custom Subject Style test
   const customStyleConfig = {
     customRequest: '',
-    gender: 'Pria',
+    gender: 'Laki-Laki',
     age: '30 tahun',
     ethnicity: 'Eropa',
     subjectStyle: 'Custom',

@@ -13,8 +13,8 @@
 
 export const TWO_WORLDS_GENDERS = [
   'Auto (Smart Detection) mengikuti gambar unggahan',
-  'Pria',
-  'Wanita'
+  'Laki-Laki',
+  'Perempuan'
 ];
 
 export const TWO_WORLDS_AGES = [
