@@ -54,7 +54,7 @@ Pada bagian **Unggah Gambar** (Mode **Analisa Gambar → Prompt**, **2 dunia**, 
 # Menjalankan development server (port 3350)
 npm run dev
 
-# Menjalankan pengujian otomatis (602 tests)
+# Menjalankan pengujian otomatis (673 tests)
 npm test
 
 # Build production web bundle
