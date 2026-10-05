@@ -83,7 +83,7 @@ Aturan:
   }
 ]
 
-Kata kunci pencarian user: "${a.trim()}"`}]}],generationConfig:{temperature:.1,responseMimeType:"application/json"}};for(const p of i)try{const k=`https://generativelanguage.googleapis.com/v1beta/models/${p}:generateContent?key=${encodeURIComponent(e)}`,g=await fetch(k,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(r)});if(!g.ok)continue;const d=(m=(c=(l=(o=(t=(await g.json()).candidates)==null?void 0:t[0])==null?void 0:o.content)==null?void 0:l.parts)==null?void 0:c[0])==null?void 0:m.text;if(!d)continue;let h=[];try{h=this.extractJson(d)}catch{continue}if(!Array.isArray(h))continue;const A=h.filter(v=>v&&v.code&&typeof v.code=="string").map(v=>({code:v.code.startsWith("/")?v.code:`/${v.code}`,name:v.name||v.code,description:v.description||"Instruksi visual shorthand online",category:v.category||"ONLINE_EXTENDED",source:"ONLINE",isOnline:!0}));return{results:A,onlineAvailable:!0,message:A.length===0?"Tidak ada shorthand online yang cocok.":""}}catch(k){console.warn(`Pencarian online dengan model ${p} gagal:`,k);continue}return{results:[],onlineAvailable:!1,message:"Pencarian online tidak tersedia saat ini."}}async enrichPrompt(a,e=null){var p,k,g,b,d,h;if(!a||typeof a!="string"||!a.trim())throw new Error("Prompt optimal kosong.");const n=P.getApiKey()?P.getApiKey().trim():"",i=P.getModel()||"gemini-2.0-flash";if(!n)throw new Error("Gemini API Key belum terhubung. Silakan atur di menu API & Pengaturan.");const s=a.match(/\/[a-zA-Z0-9_\-:]+/g)||[],r=[i,"gemini-3.5-flash-lite","gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-flash","gemini-2.5-pro"].filter((A,v,y)=>A&&y.indexOf(A)===v&&(A==="gemini-3.5-flash-lite"||!A.includes("3.5")&&!A.includes("3.8"))),t=`Anda adalah Prompt Shorthand Analyzer V3.3 - Asisten Ahli Prompt Enrichment untuk Generative Visual AI.
+Kata kunci pencarian user: "${a.trim()}"`}]}],generationConfig:{temperature:.1,responseMimeType:"application/json"}};for(const p of i)try{const k=`https://generativelanguage.googleapis.com/v1beta/models/${p}:generateContent?key=${encodeURIComponent(e)}`,g=await fetch(k,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(r)});if(!g.ok)continue;const d=(m=(c=(l=(o=(t=(await g.json()).candidates)==null?void 0:t[0])==null?void 0:o.content)==null?void 0:l.parts)==null?void 0:c[0])==null?void 0:m.text;if(!d)continue;let h=[];try{h=this.extractJson(d)}catch{continue}if(!Array.isArray(h))continue;const A=h.filter(v=>v&&v.code&&typeof v.code=="string").map(v=>({code:v.code.startsWith("/")?v.code:`/${v.code}`,name:v.name||v.code,description:v.description||"Instruksi visual shorthand online",category:v.category||"ONLINE_EXTENDED",source:"ONLINE",isOnline:!0}));return{results:A,onlineAvailable:!0,message:A.length===0?"Tidak ada shorthand online yang cocok.":""}}catch(k){console.warn(`Pencarian online dengan model ${p} gagal:`,k);continue}return{results:[],onlineAvailable:!1,message:"Pencarian online tidak tersedia saat ini."}}async enrichPrompt(a,e=null){var p,k,g,b,d,h;if(!a||typeof a!="string"||!a.trim())throw new Error("Prompt optimal kosong.");const n=P.getApiKey()?P.getApiKey().trim():"",i=P.getModel()||"gemini-2.0-flash";if(!n)throw new Error("Gemini API Key belum terhubung. Silakan atur di menu API & Pengaturan.");const s=a.match(/\/[a-zA-Z0-9_\-:]+/g)||[],r=[i,"gemini-3.5-flash-lite","gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-flash","gemini-2.5-pro"].filter((A,v,y)=>A&&y.indexOf(A)===v&&(A==="gemini-3.5-flash-lite"||!A.includes("3.5")&&!A.includes("3.8"))),t=`Anda adalah Prompt Shorthand Analyzer V3.3.5 - Asisten Ahli Prompt Enrichment untuk Generative Visual AI.
 Tugas Anda: Memperkaya Prompt Optimal pengguna dengan detail visual berkualitas tinggi tanpa mengubah makna atau maksud utamanya.
 
 PRINSIP UTAMA: "ENRICH, NOT REPLACE" (Prompt Optimal asli adalah SOURCE OF TRUTH).
@@ -243,7 +243,17 @@ Instruksi: ${p}`},{inlineData:{mimeType:c,data:l}}]}],generationConfig:f},E=awai
           </button>
         </nav>
 
-        <div class="header-actions">
+        <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
+          <a 
+            href="./Prompt-Shorthand-Analyzer-v3.3.5-release.apk" 
+            download="Prompt-Shorthand-Analyzer-v3.3.5-release.apk" 
+            class="btn btn-primary btn-xs" 
+            id="btn-download-apk" 
+            style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; text-decoration: none; padding: 0.35rem 0.65rem;"
+            title="Download file instalasi aplikasi Android APK V3.3.5"
+          >
+            📥 <span>Download APK</span>
+          </a>
           <button type="button" class="status-badge ${s}" id="header-status-badge" title="Klik untuk membuka API &amp; Pengaturan">
             <span class="status-dot"></span>
             <span>${r}</span>
@@ -1838,4 +1848,4 @@ Instruksi: ${p}`},{inlineData:{mimeType:c,data:l}}]}],generationConfig:f},E=awai
         </footer>
       </div>
     `,e.bindEvents(this.appRoot),n.bindEvents&&n.bindEvents(this.appRoot)}}document.addEventListener("DOMContentLoaded",()=>{window.__PSA_APP__=new Oe,window.__PSA_APP__.render()});
-//# sourceMappingURL=index-B823tEv3.js.map
+//# sourceMappingURL=index-DKvLWBLY.js.map

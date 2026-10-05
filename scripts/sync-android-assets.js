@@ -29,6 +29,12 @@ function copyRecursiveSync(src, dest) {
   }
 }
 
-console.log(`Syncing web bundle: ${sourceDir} -> ${targetDir}`);
+console.log(`Cleaning target assets directory: ${targetDir}`);
+if (fs.existsSync(targetDir)) {
+  fs.rmSync(targetDir, { recursive: true, force: true });
+}
+fs.mkdirSync(targetDir, { recursive: true });
+
+console.log(`Syncing fresh web bundle: ${sourceDir} -> ${targetDir}`);
 copyRecursiveSync(sourceDir, targetDir);
 console.log('Sync complete.');

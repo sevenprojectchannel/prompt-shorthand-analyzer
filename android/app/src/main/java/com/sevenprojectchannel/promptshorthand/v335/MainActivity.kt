@@ -31,7 +31,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val PRIMARY_URL = "https://sevenprojectchannel.github.io/prompt-shorthand-analyzer-v3.3/"
         const val LOCAL_ASSET_URL = "file:///android_asset/web/index.html"
     }
 
@@ -43,7 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOfflineMode: Button
 
     private var hasErrorOccurred = false
-    private var currentUrlToLoad = PRIMARY_URL
+    private var currentUrlToLoad = LOCAL_ASSET_URL
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -137,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
 
-                if (url.startsWith(PRIMARY_URL) || url.startsWith("file:///android_asset/")) {
+                if (url.startsWith("file:///android_asset/")) {
                     return false
                 }
 
@@ -185,14 +184,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupButtons() {
         btnRetry.setOnClickListener {
-            currentUrlToLoad = PRIMARY_URL
             loadApplication()
         }
 
         btnOfflineMode.setOnClickListener {
-            currentUrlToLoad = LOCAL_ASSET_URL
-            showWebView()
-            webView.loadUrl(LOCAL_ASSET_URL)
+            loadApplication()
         }
     }
 
@@ -217,16 +213,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadApplication() {
-        if (!isNetworkAvailable() && currentUrlToLoad == PRIMARY_URL) {
-            hasErrorOccurred = true
-            showErrorView()
-            swipeRefreshLayout.isRefreshing = false
-            return
-        }
-
         hasErrorOccurred = false
         showWebView()
-        webView.loadUrl(currentUrlToLoad)
+        webView.loadUrl(LOCAL_ASSET_URL)
     }
 
     private fun showErrorView() {

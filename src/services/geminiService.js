@@ -712,7 +712,7 @@ Aturan:
       'gemini-2.5-pro'
     ].filter((m, i, arr) => m && arr.indexOf(m) === i && (m === 'gemini-3.5-flash-lite' || (!m.includes('3.5') && !m.includes('3.8'))));
 
-    const systemInstruction = `Anda adalah Prompt Shorthand Analyzer V3.3 - Asisten Ahli Prompt Enrichment untuk Generative Visual AI.
+    const systemInstruction = `Anda adalah Prompt Shorthand Analyzer V3.3.5 - Asisten Ahli Prompt Enrichment untuk Generative Visual AI.
 Tugas Anda: Memperkaya Prompt Optimal pengguna dengan detail visual berkualitas tinggi tanpa mengubah makna atau maksud utamanya.
 
 PRINSIP UTAMA: "ENRICH, NOT REPLACE" (Prompt Optimal asli adalah SOURCE OF TRUTH).
