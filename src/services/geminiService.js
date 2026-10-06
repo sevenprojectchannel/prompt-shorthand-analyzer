@@ -14,6 +14,7 @@ import { synthesizeDynamicImagePrompt, analyzeCanvasPixels } from '../lib/imageV
 import { buildTwoWorldsPromptIntegration } from '../data/twoWorldsData.js';
 import { buildColourGradingDirectives, DEFAULT_COLOUR_GRADING_CONFIG } from '../data/colourGradingData.js';
 import { calculateAdaptiveAdjustments } from '../lib/colourGradingEngine.js';
+import { toAiEnglishPrompt, formatImageRepairEnglishDirective } from '../lib/promptEnglishTranslator.js';
 
 export const GEMINI_STATUS = {
   CONNECTED: 'CONNECTED',     // 🟢 Tersambung
@@ -219,8 +220,11 @@ export class GeminiService {
     // If no key or not connected, immediately use local engine
     if (!key) {
       const localResult = this.localEngine.analyze(rawPrompt, installedOverrides);
+      const enOptimal = toAiEnglishPrompt(localResult.optimalPrompt);
       return {
         ...localResult,
+        optimalPrompt: enOptimal,
+        englishBasePrompt: toAiEnglishPrompt(localResult.cleanText),
         source: 'LOCAL_ENGINE',
         isOnlineActive: false,
         engineNotice: 'Pencarian Online Shorthand TIDAK AKTIF (Mode Heuristik Lokal — Hubungkan Gemini API Key di Pengaturan untuk mengaktifkan pencarian online tanpa batas).'
@@ -251,8 +255,11 @@ export class GeminiService {
 
     // Fallback to local deterministic engine without disconnecting Gemini
     const localResult = this.localEngine.analyze(rawPrompt, installedOverrides);
+    const enOptimalFallback = toAiEnglishPrompt(localResult.optimalPrompt);
     return {
       ...localResult,
+      optimalPrompt: enOptimalFallback,
+      englishBasePrompt: toAiEnglishPrompt(localResult.cleanText),
       source: 'LOCAL_ENGINE_FALLBACK',
       isOnlineActive: true,
       engineNotice: `🌐 Pencarian Online Shorthand AKTIF (Fallback lokal sementara: ${this.lastError || 'timeout/limit'}). Koneksi tetap tersambung.`
@@ -366,7 +373,7 @@ Jawab HANYA dalam format JSON valid tanpa markdown formatting:
     }
   ],
   "installedShorthands": ["/shorthandutama"],
-  "optimalPrompt": "prompt user bersih. /shorthandutama",
+  "optimalPrompt": "Natural, descriptive, AI-readable ENGLISH prompt optimized for generative image AI (Midjourney/SDXL/DALL-E), preserving all user intent, subjects, and visual attributes, followed by installed shorthands. Example: A young woman with long dark hair walking in a vibrant park during golden hour. /portrait /softlight",
   "visualTransformation": "Deskripsi efek visual yang terjadi pada gambar"
 }`;
 
@@ -515,13 +522,29 @@ Jawab HANYA dalam format JSON valid tanpa markdown formatting:
       installedShorthands = fallback.installedShorthands;
     }
 
-    // 4. Optimal Prompt
+    // 4. Optimal Prompt (100% AI-Readable English)
     const cleanText = fallback.cleanText || rawPrompt.trim();
-    let optimalPrompt = fallback.optimalPrompt;
-    if (installedShorthands.length > 0) {
-      optimalPrompt = `${cleanText}. ${installedShorthands.join(' ')}`;
-    } else if (aiResult.optimalPrompt && aiResult.optimalPrompt.trim()) {
-      optimalPrompt = aiResult.optimalPrompt;
+    let optimalPrompt = '';
+    let englishBasePrompt = '';
+
+    if (aiResult.optimalPrompt && aiResult.optimalPrompt.trim()) {
+      optimalPrompt = toAiEnglishPrompt(aiResult.optimalPrompt.trim());
+      englishBasePrompt = optimalPrompt.replace(/\/([a-zA-Z0-9_\-:]+(?:\s+[0-9:]+)?)/g, '').trim();
+      if (installedShorthands.length > 0) {
+        for (const code of installedShorthands) {
+          if (!optimalPrompt.includes(code)) {
+            optimalPrompt += ` ${code}`;
+          }
+        }
+      }
+    } else {
+      englishBasePrompt = toAiEnglishPrompt(cleanText);
+      if (englishBasePrompt && !englishBasePrompt.endsWith('.') && !englishBasePrompt.endsWith('!') && !englishBasePrompt.endsWith('?')) {
+        englishBasePrompt += '.';
+      }
+      optimalPrompt = installedShorthands.length > 0
+        ? `${englishBasePrompt} ${installedShorthands.join(' ')}`.trim()
+        : englishBasePrompt;
     }
 
     // 5. Intent
@@ -551,6 +574,7 @@ Jawab HANYA dalam format JSON valid tanpa markdown formatting:
       rawPrompt,
       normalizedPrompt: fallback.normalizedPrompt,
       cleanText,
+      englishBasePrompt,
       intent,
       editAreas,
       lockedAreas,
@@ -733,11 +757,11 @@ ATURAN WAJIB & BATASAN KETAT:
    - Urutan instruksi deskriptif agar optimal dipahami model generasi gambar AI.
 6. JANGAN menambahkan detail sembarangan atau fantasi berlebihan hanya agar prompt menjadi panjang.
 7. JANGAN mengubah prompt menjadi konsep baru.
-8. Pertahankan bahasa utama prompt asli (jika bahasa Inggris tetap bahasa Inggris; jika bahasa Indonesia tetap bahasa Indonesia).
+8. BAHASA OUTPUT WAJIB BAHASA INGGRIS: Seluruh prompt yang diperkaya wajib ditulis dalam Bahasa Inggris yang natural, deskriptif, dan optimal untuk AI image generator, dengan seluruh shorthand asli dipertahankan di akhir.
 
 Format respons HANYA berupa JSON valid:
 {
-  "enrichedPrompt": "teks prompt lengkap yang telah diperkaya beserta seluruh shorthand asli di akhir"
+  "enrichedPrompt": "teks prompt lengkap yang telah diperkaya dalam Bahasa Inggris beserta seluruh shorthand asli di akhir"
 }`;
 
     const contextSummary = analysisContext?.intent?.summary || '';
@@ -787,7 +811,7 @@ Format respons HANYA berupa JSON valid:
           throw new Error('Hasil pengayaan AI kosong atau tidak valid.');
         }
 
-        enrichedText = enrichedText.trim();
+        enrichedText = toAiEnglishPrompt(enrichedText.trim());
 
         // Safe preservation: Pastikan seluruh shorthand awal tetap ada
         for (const sh of originalShorthands) {
@@ -917,8 +941,9 @@ Format respons HANYA berupa JSON valid:
    * --no [negative prompt yang relevan]
    */
   assembleOptimalImagePrompt(visionData, installedCodes = [], twoWorldsConfig = null) {
-    const main = (visionData?.mainDescription || visionData?.generatedPrompt || '').trim() ||
-      'Fotografi autentik dengan pencahayaan alami dan detail realistis.';
+    const rawMain = (visionData?.mainDescription || visionData?.generatedPrompt || '').trim() ||
+      'Authentic photography with natural lighting and realistic details.';
+    const main = toAiEnglishPrompt(rawMain);
     const header = main.startsWith('/imagine prompt:') ? main : `/imagine prompt: ${main}`;
 
     let visualDetails = (visionData?.visualDetails || '').trim();
@@ -956,7 +981,7 @@ Format respons HANYA berupa JSON valid:
 
     const parts = [header];
     if (visualDetails) {
-      parts.push(visualDetails);
+      parts.push(toAiEnglishPrompt(visualDetails));
     }
 
     // Integrasi Khusus Mode 2 Dunia (Hanya berlaku bila twoWorldsConfig diberikan)
@@ -992,7 +1017,7 @@ Format respons HANYA berupa JSON valid:
         : 'cartoon, 3d render, illustration, deformed, blurry, watermark, text';
     }
 
-    let cleanNegative = negative.replace(/^--no\s+/i, '').trim();
+    let cleanNegative = toAiEnglishPrompt(negative.replace(/^--no\s+/i, '').trim());
     if (is3DSubject) {
       cleanNegative = cleanNegative
         .replace(/cartoon,\s*/gi, '')
@@ -1654,32 +1679,35 @@ ATURAN MUTLAK:
    - Pencahayaan (studio softbox, daylight alami, directional, ambient, highlight, shadow).
    - Lingkungan & latar belakang (studio foto, kantor, indoor, alam outdoor, warna background).
    - Palet warna, white balance, saturasi, tone.
-   - Gaya fotografi atau gaya visual asli (realistis, karakter 3D animasi, chibi figurine, digital render).
+    - Gaya fotografi atau gaya visual asli (realistis, karakter 3D animasi, chibi figurine, digital render).
+
+3. ATURAN BAHASA MUTLAK (GLOBAL PROMPT OPTIMAL):
+Seluruh atribut visual yang menjadi bagian dari prompt (mainDescription, visualDetails, subject, pose, outfit, environment, lighting, composition, cameraAngle, style, colorTone, negativePrompt) WAJIB ditulis dalam BAHASA INGGRIS yang natural, deskriptif, spesifik, dan siap digunakan untuk AI image generator (Midjourney/SDXL/DALL-E).
 
 Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengkap:
 {
-  "mainDescription": "Ringkasan prompt deskriptif utama dari gambar aktual...",
-  "visualDetails": "Rincian visual komprehensif mencakup subjek, busana, pose, ekspresi, komposisi, pencahayaan, latar belakang, dan karakter fotografi...",
-  "subject": "Deskripsi subjek...",
-  "pose": "Pose subjek...",
-  "framing": "Framing shot (misal: medium shot, closeup, wide)...",
-  "cameraAngle": "Sudut dan lensa kamera (misal: eye-level angle, 50mm lens)...",
-  "lighting": "Karakter pencahayaan...",
-  "environment": "Lingkungan sekitar...",
-  "background": "Latar belakang...",
-  "outfit": "Detail busana/pakaian...",
-  "expression": "Ekspresi wajah/karakter...",
-  "composition": "Komposisi visual...",
-  "style": "Gaya fotografi atau visual...",
-  "colorTone": "Warna dominan dan tone...",
+  "mainDescription": "Descriptive main image prompt in natural AI-readable English...",
+  "visualDetails": "Comprehensive visual details in English covering subject, attire, pose, expression, composition, lighting, background, and photographic character...",
+  "subject": "Subject description in English...",
+  "pose": "Subject pose in English...",
+  "framing": "Framing shot in English (e.g., medium shot, closeup, wide)...",
+  "cameraAngle": "Camera angle and lens in English (e.g., eye-level angle, 50mm lens)...",
+  "lighting": "Lighting characteristics in English...",
+  "environment": "Surrounding environment in English...",
+  "background": "Background setting in English...",
+  "outfit": "Attire and clothing details in English...",
+  "expression": "Facial expression in English...",
+  "composition": "Visual composition in English...",
+  "style": "Photographic or visual style in English...",
+  "colorTone": "Dominant color palette and tone in English...",
   "aspectRatio": "16:9",
   "suggestedShorthands": ["/portrait", "/studio", "/suit", "/eyelevel", "/softlight", "/realistic", "/rawphoto"],
-  "negativePrompt": "negative prompt yang relevan (misal: deformed, bad anatomy, blurry, watermark; sesuaikan dengan jenis subjek)"
+  "negativePrompt": "Relevant negative prompt in English (e.g., deformed, bad anatomy, blurry, watermark)"
 }`;
 
     const promptText = referencePrompt && referencePrompt.trim()
-      ? `Analisis gambar ini dengan panduan pengguna: "${referencePrompt.trim()}".`
-      : 'Analisis gambar ini secara visual mendalam dan hasilkan rincian elemen visual nyata.';
+      ? `Analisis gambar ini dengan panduan pengguna: "${referencePrompt.trim()}". Pastikan seluruh output prompt dalam Bahasa Inggris natural.`
+      : 'Analisis gambar ini secara visual mendalam dan hasilkan rincian elemen visual nyata dalam Bahasa Inggris natural untuk AI image generator.';
 
     let lastError = null;
     const attemptErrors = [];
@@ -1762,6 +1790,10 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
               if (!parsed.mainDescription) {
                 parsed.mainDescription = String(foundDesc).trim();
               }
+              parsed.mainDescription = toAiEnglishPrompt(parsed.mainDescription);
+              if (parsed.visualDetails) {
+                parsed.visualDetails = toAiEnglishPrompt(parsed.visualDetails);
+              }
               if (targetAspectRatio && targetAspectRatio !== 'auto' && targetAspectRatio !== 'Otomatis') {
                 parsed.aspectRatio = targetAspectRatio;
               }
@@ -1786,9 +1818,9 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
 
   /**
    * Helper: Generator Vision Heuristik Dinamis (100% DINAMIS, ZERO TEMPLATE STATIS)
-   * Menghasilkan prompt deskriptif berbasis telemetri visual piksel nyata dan atribut gambar aktual.
+   * Menghasilkan prompt deskriptif berbasis telemetri visual piksel nyata dan atribut gambar aktual dalam Bahasa Inggris AI-readable.
    */
-  generateDynamicImageAnalysis(imageFile, imageBase64, referencePrompt = '', preferredLang = 'id', visualTelemetry = null, targetAspectRatio = 'auto') {
+  generateDynamicImageAnalysis(imageFile, imageBase64, referencePrompt = '', preferredLang = 'en', visualTelemetry = null, targetAspectRatio = 'auto') {
     const telemetry = visualTelemetry || imageFile?.visualTelemetry || analyzeCanvasPixels(null, {
       filename: imageFile?.name,
       width: imageFile?.width,
@@ -1797,7 +1829,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
     });
 
     return synthesizeDynamicImagePrompt(telemetry, {
-      preferredLang,
+      preferredLang: 'en',
       referencePrompt,
       filename: imageFile?.name,
       targetAspectRatio
@@ -1982,15 +2014,21 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
 
     const installedShorthands = deduplicatedShorthands.map(s => s.code);
 
-    // 6. Build Optimal Prompt
-    let optimalPrompt = repairInstructions.trim();
+    // 6. Build Optimal Prompt (100% AI-Readable English)
+    let optimalPrompt = '';
+    let englishBasePrompt = '';
     if (isGrading) {
       const gradingDirectives = buildColourGradingDirectives(activeGradingConfig, adaptiveAdjustments, telemetry);
+      englishBasePrompt = gradingDirectives;
       optimalPrompt = installedShorthands.length > 0
         ? `${gradingDirectives}\n\n${installedShorthands.join(' ')}`.trim()
         : gradingDirectives.trim();
-    } else if (installedShorthands.length > 0) {
-      optimalPrompt = `${optimalPrompt} ${installedShorthands.join(' ')}`.trim();
+    } else {
+      const repairEnglish = formatImageRepairEnglishDirective(repairInstructions);
+      englishBasePrompt = repairEnglish;
+      optimalPrompt = installedShorthands.length > 0
+        ? `${repairEnglish} ${installedShorthands.join(' ')}`.trim()
+        : repairEnglish;
     }
 
     return {
@@ -2004,6 +2042,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
       optimizationAreas,
       goodAspects,
       repairInstructions,
+      englishBasePrompt,
       colourGradingConfig: activeGradingConfig,
       adaptiveAdjustments,
       telemetry: isGrading ? telemetry : null,
@@ -2146,7 +2185,7 @@ Format respons HANYA berupa JSON valid:
     "Aspek warna/visual yang dinilai sudah optimal 1",
     "Aspek warna/visual yang dinilai sudah optimal 2"
   ],
-  "repairInstructions": "Teks instruksi penyesuaian colour grading..."
+  "repairInstructions": "Natural, AI-readable ENGLISH prompt directives for color grading..."
 }` : `Anda adalah Ahli Diagnosa Visual & Optimasi Fotografi Digital profesional.
 Tugas Anda: Menganalisis kondisi aktual gambar yang diunggah secara menyeluruh dan obyektif sebagai SOURCE OF TRUTH.
 Fokus utama: Mendiagnosis kondisi visual gambar dan menentukan SELURUH ASPEK gambar yang membutuhkan perbaikan, peningkatan, atau optimasi.
@@ -2176,7 +2215,7 @@ ATURAN WAJIB & KETENTUAN KHUSUS:
    - PRESERVATION: Kebutuhan preservasi detail/tekstur/kulit.
    - FINISHING: Sentuhan akhir/realisme/karakter fotografi alami.
 6. Cocokkan dengan shorthand yang tepat, contoh: /shadowrecovery, /highlightcontrol, /dynamicrange, /naturalcontrast, /naturaltone, /colorbalance, /detailpreservation, /texturepreservation, /naturalprocessing, /perspectivecorrection, /lenscorrection, /compositionbalance, /highdetail, /sharpen, /denoise, /enhance, /hdr, /rawphoto.
-7. Gunakan bahasa: ${preferredLang === 'en' ? 'English' : 'Bahasa Indonesia'}.
+7. Gunakan bahasa: ${preferredLang === 'en' ? 'English' : 'Bahasa Indonesia'}. Catatan Khusus: Bidang "repairInstructions" WAJIB dalam Bahasa Inggris natural untuk generative visual AI.
 
 Format respons HANYA berupa JSON valid:
 {
@@ -2195,7 +2234,7 @@ Format respons HANYA berupa JSON valid:
     "Aspek visual yang dinilai sudah optimal 1",
     "Aspek visual yang dinilai sudah optimal 2"
   ],
-  "repairInstructions": "Teks instruksi perbaikan komprehensif..."
+  "repairInstructions": "Apply comprehensive photographic restoration: recover shadow details, suppress highlight blowout, normalize contrast and color balance, while preserving authentic skin textures and micro-details without synthetic artifacts."
 }`;
 
     const userPromptText = isColourGrading
@@ -2410,7 +2449,7 @@ Format respons HANYA berupa JSON valid:
 
       const styleName = activeGradingConfig?.selectedStyle || 'Natural Vibrant';
       const summary = `Hasil diagnosis colour grading menunjukkan gambar memiliki fondasi visual yang kuat. Ditemukan ${areas.length} area penyesuaian tonal curve, suhu warna, dan palet warna untuk mencapai grade estetis yang harmonis dan optimal (Arah visual: ${styleName}).`;
-      const instructions = `Terapkan colour grading profesional: selaraskan kurva kontras, seimbangkan white balance dan suhu warna, kalibrasi saturasi serta tone bayangan dan highlight, dengan tetap mempertahankan keaslian tekstur subjek.`;
+      const instructions = buildColourGradingDirectives(activeGradingConfig);
 
       return {
         visualConditionSummary: summary,
@@ -2597,7 +2636,7 @@ Format respons HANYA berupa JSON valid:
     }
 
     const summary = `Hasil diagnosis visual menunjukkan gambar memiliki struktur fotografi yang solid. Ditemukan ${areas.length} aspek yang memerlukan perbaikan terfokus untuk mencapai kualitas visual optimal.`;
-    const instructions = `Lakukan perbaikan terpadu pada foto asli: pulihkan detail bayangan, kontrol highlight, seimbangkan kontras dan warna alami, serta lindungi tekstur dan detail halus dari pemrosesan berlebih.`;
+    const instructions = formatImageRepairEnglishDirective(notesPrompt);
 
     return {
       visualConditionSummary: summary,

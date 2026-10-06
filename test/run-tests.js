@@ -2045,14 +2045,46 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   };
 
   const integrationText = buildTwoWorldsPromptIntegration(sampleConfig);
-  assert(integrationText.includes('Instruksi Tambahan (Custom Request):'), 'Mengintegrasikan Custom Request');
-  assert(integrationText.includes('Tambahkan subjek manusia realistis'), 'Memuat isi teks Custom Request asli');
-  assert(integrationText.includes('jenis kelamin: Perempuan'), 'Memuat parameter jenis kelamin Perempuan');
-  assert(integrationText.includes('usia: 25 tahun'), 'Memuat parameter usia 25 tahun');
-  assert(integrationText.includes('ras/etnis: Asia'), 'Memuat parameter etnis Asia');
-  assert(integrationText.includes('Style Subjek (Subject Style):') && integrationText.includes('Photorealistic'), 'Memuat Style Subjek Photorealistic');
-  assert(integrationText.includes('Style Lingkungan (Environment Style):') && integrationText.includes('SpongeBob Cinematic 3D'), 'Memuat Environment Style SpongeBob Cinematic 3D');
-  assert(integrationText.includes('tanpa perubahan atau penghapusan'), 'Menjaga integritas subjek asli');
+  assert(
+    integrationText.includes('Instruksi Tambahan (Custom Request):') ||
+    integrationText.includes('Additional Directive (Custom Request):'),
+    'Mengintegrasikan Custom Request'
+  );
+  assert(
+    integrationText.includes('Tambahkan subjek manusia realistis') ||
+    integrationText.toLowerCase().includes('add a realistic human subject'),
+    'Memuat isi teks Custom Request asli'
+  );
+  assert(
+    integrationText.includes('jenis kelamin: Perempuan') ||
+    integrationText.includes('Gender: Female'),
+    'Memuat parameter jenis kelamin Perempuan'
+  );
+  assert(
+    integrationText.includes('usia: 25 tahun') ||
+    integrationText.includes('Age: 25 years old'),
+    'Memuat parameter usia 25 tahun'
+  );
+  assert(
+    integrationText.includes('ras/etnis: Asia') ||
+    integrationText.includes('Ethnicity: Asian'),
+    'Memuat parameter etnis Asia'
+  );
+  assert(
+    (integrationText.includes('Style Subjek') || integrationText.includes('Subject Style')) &&
+    integrationText.includes('Photorealistic'),
+    'Memuat Style Subjek Photorealistic'
+  );
+  assert(
+    (integrationText.includes('Style Lingkungan') || integrationText.includes('Environment Style')) &&
+    integrationText.includes('SpongeBob Cinematic 3D'),
+    'Memuat Environment Style SpongeBob Cinematic 3D'
+  );
+  assert(
+    integrationText.includes('tanpa perubahan atau penghapusan') ||
+    integrationText.includes('without alteration or removal'),
+    'Menjaga integritas subjek asli'
+  );
 
   // Custom Subject Style test
   const customStyleConfig = {
@@ -2066,7 +2098,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   };
   const customStyleText = buildTwoWorldsPromptIntegration(customStyleConfig);
   assert(customStyleText.includes('Cyberpunk Hyper-Detail'), 'Custom Subject Style terintegrasi ke prompt saat dipilih');
-  assert(!customStyleText.includes('Style Lingkungan'), 'Environment Style Auto tidak menambahkan klausul berlebih');
+  assert(!customStyleText.includes('Style Lingkungan') && !customStyleText.includes('Environment Style:'), 'Environment Style Auto tidak menambahkan klausul berlebih');
 
   // 3. Prompt Optimal Full Assembly Order Check
   const geminiSvc = new GeminiService(INITIAL_SHORTHAND_CATALOG);
@@ -2077,22 +2109,60 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   };
 
   const assembledPrompt = geminiSvc.assembleOptimalImagePrompt(dummyVisionData, ['/naturalportraits', '/daylightnatural'], sampleConfig);
-  assert(assembledPrompt.includes('/imagine prompt: Dua orang berada di taman tropis'), 'Urutan 1: Header Prompt asli di awal');
-  assert(assembledPrompt.includes('Detail subjek utama dengan pencahayaan alami'), 'Urutan 2: Hasil analisis gambar mengikuti');
-  assert(assembledPrompt.includes('Instruksi Tambahan (Custom Request):'), 'Urutan 3: Custom Request terintegrasi');
-  assert(assembledPrompt.includes('Parameter Karakter Subjek:'), 'Urutan 4: Demografi Subjek terintegrasi');
-  assert(assembledPrompt.includes('Style Subjek (Subject Style):'), 'Urutan 5: Style Subjek terintegrasi');
-  assert(assembledPrompt.includes('Style Lingkungan (Environment Style):'), 'Urutan 6: Environment Style terintegrasi');
+  assert(
+    assembledPrompt.includes('/imagine prompt: Dua orang berada di taman tropis') ||
+    assembledPrompt.includes('/imagine prompt: Two people'),
+    'Urutan 1: Header Prompt asli di awal'
+  );
+  assert(
+    assembledPrompt.includes('Detail subjek utama dengan pencahayaan alami') ||
+    assembledPrompt.toLowerCase().includes('subject detail with natural') ||
+    assembledPrompt.toLowerCase().includes('subject detail') ||
+    assembledPrompt.toLowerCase().includes('natural daylight'),
+    'Urutan 2: Hasil analisis gambar mengikuti'
+  );
+  assert(
+    assembledPrompt.includes('Instruksi Tambahan (Custom Request):') ||
+    assembledPrompt.includes('Additional Directive (Custom Request):'),
+    'Urutan 3: Custom Request terintegrasi'
+  );
+  assert(
+    assembledPrompt.includes('Parameter Karakter Subjek:') ||
+    assembledPrompt.includes('Subject Character Parameters:'),
+    'Urutan 4: Demografi Subjek terintegrasi'
+  );
+  assert(
+    assembledPrompt.includes('Style Subjek (Subject Style):') ||
+    assembledPrompt.includes('Subject Style:'),
+    'Urutan 5: Style Subjek terintegrasi'
+  );
+  assert(
+    assembledPrompt.includes('Style Lingkungan (Environment Style):') ||
+    assembledPrompt.includes('Environment Style:'),
+    'Urutan 6: Environment Style terintegrasi'
+  );
   assert(assembledPrompt.includes('/naturalportraits /daylightnatural --ar 16:9 --style raw --v 6.1'), 'Urutan 7: Shorthand terpasang dan teknis parameter terintegrasi');
   assert(assembledPrompt.includes('--no '), 'Urutan 8: Negative prompt di akhir');
 
   // Verify exact index ordering
   const idxHeader = assembledPrompt.indexOf('/imagine prompt:');
-  const idxDetails = assembledPrompt.indexOf('Detail subjek utama');
-  const idxCustom = assembledPrompt.indexOf('Instruksi Tambahan (Custom Request):');
-  const idxDemo = assembledPrompt.indexOf('Parameter Karakter Subjek:');
-  const idxSubStyle = assembledPrompt.indexOf('Style Subjek (Subject Style):');
-  const idxEnvStyle = assembledPrompt.indexOf('Style Lingkungan (Environment Style):');
+  const idxDetails = assembledPrompt.indexOf('Detail subjek utama') !== -1
+    ? assembledPrompt.indexOf('Detail subjek utama')
+    : (assembledPrompt.indexOf('subject detail') !== -1
+        ? assembledPrompt.indexOf('subject detail')
+        : assembledPrompt.indexOf('natural'));
+  const idxCustom = assembledPrompt.indexOf('Instruksi Tambahan (Custom Request):') !== -1
+    ? assembledPrompt.indexOf('Instruksi Tambahan (Custom Request):')
+    : assembledPrompt.indexOf('Additional Directive (Custom Request):');
+  const idxDemo = assembledPrompt.indexOf('Parameter Karakter Subjek:') !== -1
+    ? assembledPrompt.indexOf('Parameter Karakter Subjek:')
+    : assembledPrompt.indexOf('Subject Character Parameters:');
+  const idxSubStyle = assembledPrompt.indexOf('Style Subjek (Subject Style):') !== -1
+    ? assembledPrompt.indexOf('Style Subjek (Subject Style):')
+    : assembledPrompt.indexOf('Subject Style:');
+  const idxEnvStyle = assembledPrompt.indexOf('Style Lingkungan (Environment Style):') !== -1
+    ? assembledPrompt.indexOf('Style Lingkungan (Environment Style):')
+    : assembledPrompt.indexOf('Environment Style:');
   const idxShorthands = assembledPrompt.indexOf('/naturalportraits');
   const idxNegative = assembledPrompt.indexOf('--no ');
 
@@ -2335,8 +2405,17 @@ console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICAT
   const nonDestructiveDirectives = buildColourGradingDirectives(DEFAULT_COLOUR_GRADING_CONFIG);
   assert(nonDestructiveDirectives.includes('SOURCE OF TRUTH'), 'Prompt memuat deklarasi FOTO ASLI SEBAGAI SOURCE OF TRUTH');
   assert(nonDestructiveDirectives.includes('NON-DESTRUCTIVE') || nonDestructiveDirectives.includes('non-destruktif'), 'Prompt memuat klausul NON-DESTRUCTIVE enhancement');
-  assert(nonDestructiveDirectives.includes('wajah') && nonDestructiveDirectives.includes('identitas'), 'Prompt melarang perubahan wajah & identitas');
-  assert(nonDestructiveDirectives.includes('regenerasi citra') || nonDestructiveDirectives.includes('generative fill'), 'Prompt melarang regenerasi citra atau generative fill');
+  assert(
+    (nonDestructiveDirectives.includes('wajah') || nonDestructiveDirectives.includes('facial') || nonDestructiveDirectives.includes('face')) &&
+    (nonDestructiveDirectives.includes('identitas') || nonDestructiveDirectives.includes('identity')),
+    'Prompt melarang perubahan wajah & identitas'
+  );
+  assert(
+    nonDestructiveDirectives.includes('regenerasi citra') ||
+    nonDestructiveDirectives.includes('generative fill') ||
+    nonDestructiveDirectives.includes('regenerate the image'),
+    'Prompt melarang regenerasi citra atau generative fill'
+  );
 
   // 12. Verifikasi Style Adaptive Intelligence
   // Kasus A: Foto yang sudah warm vs foto cool dengan target Golden Hour
@@ -2424,6 +2503,104 @@ console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICAT
   assert(!inputTab2.html.includes('id="colour-grading-panel"'), 'Tab Analisa Gambar → Prompt TIDAK me-render ColourGradingPanel');
   assert(!inputTab3.html.includes('id="colour-grading-panel"'), 'Tab 2 Dunia TIDAK me-render ColourGradingPanel');
   assert(!inputTab4.html.includes('id="colour-grading-panel"'), 'Tab Perbaikan Gambar TIDAK me-render ColourGradingPanel');
+}
+
+// -----------------------------------------------------------------------------
+// VERIFIKASI V3.6: GLOBAL ENGLISH PROMPT OPTIMAL (5 TABS & FITUR)
+// -----------------------------------------------------------------------------
+console.log('\n--- VERIFIKASI V3.6: GLOBAL ENGLISH PROMPT OPTIMAL (5 TABS & FITUR) ---');
+{
+  const { toAiEnglishPrompt, TWO_WORLDS_TEMPLATES_EN, formatTwoWorldsEnglishIntegration, formatImageRepairEnglishDirective } = await import('../src/lib/promptEnglishTranslator.js');
+  const geminiSvc = new GeminiService(INITIAL_SHORTHAND_CATALOG);
+
+  // 1. Verifikasi toAiEnglishPrompt Helper Function
+  const indonesianPrompt = 'seorang wanita cantik tersenyum di taman bunga dengan pencahayaan alami /portrait /softlight --ar 16:9 --style raw';
+  const englishPrompt = toAiEnglishPrompt(indonesianPrompt);
+  assert(englishPrompt.includes('/portrait'), 'Preservasi shorthand /portrait tanpa translasi kode');
+  assert(englishPrompt.includes('/softlight'), 'Preservasi shorthand /softlight tanpa translasi kode');
+  assert(englishPrompt.includes('--ar 16:9'), 'Preservasi parameter Midjourney --ar 16:9');
+  assert(englishPrompt.includes('--style raw'), 'Preservasi parameter Midjourney --style raw');
+  assert(englishPrompt.toLowerCase().includes('woman') || englishPrompt.toLowerCase().includes('female'), 'Menerjemahkan subjek ke bahasa Inggris (woman/female)');
+  assert(!englishPrompt.includes('wanita cantik'), 'Frasa Indonesia wanita cantik digantikan dengan bahasa Inggris');
+
+  // 2. Tab 1: ANALISA_PROMPT (Optimal Prompt wajib Bahasa Inggris)
+  const tab1Analysis = await geminiSvc.analyzePrompt('seorang pria mengenakan jas formal berdiri di jalanan kota saat malam hari');
+  assert(Boolean(tab1Analysis.optimalPrompt), 'Tab 1: Menghasilkan optimalPrompt');
+  assert(
+    tab1Analysis.optimalPrompt.toLowerCase().includes('man') ||
+    tab1Analysis.optimalPrompt.toLowerCase().includes('suit') ||
+    tab1Analysis.optimalPrompt.toLowerCase().includes('street'),
+    'Tab 1: Deskripsi utama optimalPrompt berbahasa Inggris'
+  );
+  assert(
+    !tab1Analysis.optimalPrompt.includes('seorang pria') &&
+    !tab1Analysis.optimalPrompt.includes('jas formal'),
+    'Tab 1: Frasa bahasa Indonesia telah diterjemahkan ke bahasa Inggris'
+  );
+
+  // 3. Tab 2: IMAGE_TO_PROMPT (Optimal Prompt wajib Bahasa Inggris)
+  const mockVisionData = {
+    mainDescription: 'Seorang gadis muda memegang buku di perpustakaan klasik dengan pencahayaan lembut.',
+    visualDetails: 'Detail fokus pada mata dan tekstur kertas buku.',
+    aspectRatio: '3:4'
+  };
+  const tab2Optimal = geminiSvc.assembleOptimalImagePrompt(mockVisionData, ['/portrait', '/bokeh'], null);
+  assert(tab2Optimal.startsWith('/imagine prompt:'), 'Tab 2: optimalPrompt diawali /imagine prompt:');
+  assert(
+    tab2Optimal.toLowerCase().includes('girl') ||
+    tab2Optimal.toLowerCase().includes('library') ||
+    tab2Optimal.toLowerCase().includes('book'),
+    'Tab 2: Deskripsi visual dirakit dalam bahasa Inggris'
+  );
+  assert(tab2Optimal.includes('/portrait /bokeh --ar 3:4'), 'Tab 2: Shorthand dan rasio aspek terpasang utuh');
+
+  // 4. Tab 3: TWO_WORLDS (Optimal Prompt & Klausul 2 Dunia wajib Bahasa Inggris)
+  const twConfig = {
+    customRequest: 'tambahkan subjek baru mengenakan hijab',
+    gender: 'Perempuan',
+    age: '20 tahun',
+    ethnicity: 'Asia',
+    subjectStyle: 'Photorealistic',
+    customSubjectStyle: '',
+    environmentStyle: 'SpongeBob Cinematic 3D'
+  };
+  const twIntegration = formatTwoWorldsEnglishIntegration(twConfig);
+  assert(twIntegration.includes('Additional Directive (Custom Request):'), 'Tab 3: Klausul Custom Request berbahasa Inggris');
+  assert(twIntegration.toLowerCase().includes('hijab'), 'Tab 3: Request hijab diterjemahkan secara natural');
+  assert(twIntegration.includes('Subject Character Parameters:'), 'Tab 3: Header demografi berbahasa Inggris');
+  assert(twIntegration.includes('Gender: Female') && twIntegration.includes('Age: 20 years old') && twIntegration.includes('Ethnicity: Asian'), 'Tab 3: Nilai demografi diterjemahkan ke Inggris');
+  assert(twIntegration.includes('Subject Style: Visual rendering'), 'Tab 3: Klausul Subject Style berbahasa Inggris');
+  assert(twIntegration.includes('Environment Style: World-building'), 'Tab 3: Klausul Environment Style berbahasa Inggris');
+
+  // 5. Tab 4: SHORTHAND_IMPROVE (Instruksi Perbaikan Gambar wajib Bahasa Inggris)
+  const tab4Directive = formatImageRepairEnglishDirective('perbaiki bayangan gelap dan hilangkan bintik noise');
+  assert(tab4Directive.startsWith('Apply comprehensive photographic restoration:'), 'Tab 4: Instruksi restorasi diawali teks standar bahasa Inggris');
+  assert(tab4Directive.toLowerCase().includes('shadow') || tab4Directive.toLowerCase().includes('noise') || tab4Directive.toLowerCase().includes('restoration'), 'Tab 4: Memuat terminologi restorasi bahasa Inggris');
+
+  // 6. Tab 5: COLOUR_GRADING (Instruksi Direktif Colour Grading wajib Bahasa Inggris)
+  const tab5Directives = buildColourGradingDirectives({
+    mode: 'SELECT_STYLE',
+    selectedStyle: 'Moody Cinematic',
+    intensity: 75,
+    protections: { skinToneProtection: true, highlightProtection: true, shadowProtection: true }
+  });
+  assert(tab5Directives.includes('STRICT PRESERVATION DIRECTIVE (ORIGINAL PHOTO IS SOURCE OF TRUTH):'), 'Tab 5: Header preservasi ketat berbahasa Inggris');
+  assert(tab5Directives.includes('DO NOT regenerate the image. DO NOT use generative fill.'), 'Tab 5: Larangan regenerasi dan generative fill berbahasa Inggris');
+  assert(tab5Directives.includes('COLOUR GRADING STYLE TARGET: "Moody Cinematic"'), 'Tab 5: Target Style teridentifikasi');
+  assert(tab5Directives.includes('INTELLIGENT PROTECTIONS ACTIVE:'), 'Tab 5: Proteksi cerdas terdaftar dalam bahasa Inggris');
+  assert(tab5Directives.includes('Natural Skin Tone Protection'), 'Tab 5: Proteksi warna kulit natural terpasang');
+
+  // 7. Verifikasi 5 Template Resmi 2 Dunia dalam Bahasa Inggris
+  assert(TWO_WORLDS_TEMPLATES_EN.tpl_1.includes('Add a realistic human subject alongside existing subjects'), 'Template 1 resmi berbahasa Inggris AI');
+  assert(TWO_WORLDS_TEMPLATES_EN.tpl_4.includes('wearing an elegant hijab'), 'Template 4 resmi berbahasa Inggris AI');
+  assert(TWO_WORLDS_TEMPLATES_EN.tpl_5.includes('wearing a hijab'), 'Template 5 resmi berbahasa Inggris AI');
+
+  // 8. Verifikasi UI Bahasa Indonesia Tidak Berubah (Tetap Bahasa Indonesia)
+  const uiInputWithImg = renderPromptInput({ activeMode: 'COLOUR_GRADING', uploadedImage: { name: 'test.jpg' } });
+  assert(uiInputWithImg.html.includes('🎨 Analisa Colour Grading Gambar'), 'UI Button tetap Bahasa Indonesia');
+  assert(uiInputWithImg.html.includes('Catatan Colour Grading'), 'UI Label tetap Bahasa Indonesia');
+  const uiInputDropzone = renderPromptInput({ activeMode: 'COLOUR_GRADING' });
+  assert(uiInputDropzone.html.includes('Tarik &amp; lepas gambar'), 'UI Dropzone tetap Bahasa Indonesia');
 }
 
 console.log('\n==================================================');

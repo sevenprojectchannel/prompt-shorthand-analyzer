@@ -14,6 +14,7 @@ import { StorageService } from './services/storageService.js';
 import { GeminiService, GEMINI_STATUS } from './services/geminiService.js';
 import { cleanPromptForCopy } from './lib/promptFormatter.js';
 import { DEFAULT_COLOUR_GRADING_CONFIG } from './data/colourGradingData.js';
+import { toAiEnglishPrompt } from './lib/promptEnglishTranslator.js';
 
 import { renderHeader } from './components/Header.js';
 import { renderAnalyzerPage } from './components/AnalyzerPage.js';
@@ -484,24 +485,35 @@ class App {
 
   updateInstalledShorthands(newInstalledList) {
     this.analysisResult.installedShorthands = newInstalledList;
-    // Reconstruct optimal prompt
+    // Reconstruct optimal prompt (100% AI-Readable English across all modes)
     if ((this.analysisResult.mode === 'IMAGE_TO_PROMPT' || this.analysisResult.mode === 'TWO_WORLDS') && this.analysisResult.visionData) {
       this.analysisResult.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
         this.analysisResult.visionData,
         newInstalledList,
         this.analysisResult.mode === 'TWO_WORLDS' ? this.twoWorldsConfig : null
       );
-    } else if (this.analysisResult.isImageRepair && this.analysisResult.repairInstructions) {
-      let opt = this.analysisResult.repairInstructions.trim();
-      if (newInstalledList.length > 0) {
-        opt = `${opt} ${newInstalledList.join(' ')}`.trim();
+    } else if (this.analysisResult.isColourGrading) {
+      if (typeof this.geminiService.assembleImageRepairPrompt === 'function') {
+        const activeItem = this.uploadedImagesList[this.activeUploadedImageIndex];
+        const currentTelemetry = activeItem?.colorTelemetry || activeItem?.visualTelemetry || this.analysisResult.telemetry || null;
+        const updatedResult = this.geminiService.assembleImageRepairPrompt({
+          ...this.analysisResult,
+          colourGradingConfig: this.colourGradingConfig,
+          telemetry: currentTelemetry,
+          installedOverrides: newInstalledList
+        });
+        this.analysisResult.optimalPrompt = updatedResult.optimalPrompt;
       }
-      this.analysisResult.optimalPrompt = opt;
+    } else if (this.analysisResult.isImageRepair && this.analysisResult.repairInstructions) {
+      const baseOpt = this.analysisResult.englishBasePrompt || toAiEnglishPrompt(this.analysisResult.repairInstructions.trim());
+      this.analysisResult.optimalPrompt = newInstalledList.length > 0
+        ? `${baseOpt} ${newInstalledList.join(' ')}`.trim()
+        : baseOpt;
     } else {
-      this.analysisResult.optimalPrompt = this.geminiService.localEngine.buildOptimalPrompt(
-        this.analysisResult.cleanText,
-        newInstalledList
-      );
+      const baseText = this.analysisResult.englishBasePrompt || toAiEnglishPrompt(this.analysisResult.cleanText || '');
+      this.analysisResult.optimalPrompt = newInstalledList.length > 0
+        ? `${baseText}. ${newInstalledList.join(' ')}`.trim()
+        : baseText;
     }
 
     // Sync active and checked states on cards

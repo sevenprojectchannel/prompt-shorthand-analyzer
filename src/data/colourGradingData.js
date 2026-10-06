@@ -182,9 +182,11 @@ export const HIGHLIGHT_TONE_OPTIONS = [
   { label: 'Soft Rose (Pastel Aesthetic)', value: 'Soft Rose', color: '#f472b6' }
 ];
 
+import { toAiEnglishPrompt } from '../lib/promptEnglishTranslator.js';
+
 /**
  * Membangun klausul direktif AI Color Grading adaptif non-destruktif
- * untuk disematkan pada PROMPT OPTIMAL tab "🎨 COLOUR GRADING".
+ * untuk disematkan pada PROMPT OPTIMAL tab "🎨 COLOUR GRADING" (100% Natural AI English).
  */
 export function buildColourGradingDirectives(config = DEFAULT_COLOUR_GRADING_CONFIG, telemetry = null) {
   const cfg = { ...DEFAULT_COLOUR_GRADING_CONFIG, ...config };
@@ -195,9 +197,9 @@ export function buildColourGradingDirectives(config = DEFAULT_COLOUR_GRADING_CON
 
   // 1. Strict Source Image Protection Header (NON-GENERATIVE)
   clauses.push(
-    `STRICT PRESERVATION DIRECTIVE (FOTO ORIGINAL ADALAH SOURCE OF TRUTH): ` +
-    `DO NOT regenerate the image (DILARANG melakukan regenerasi citra atau generative fill). ` +
-    `DO NOT alter subject identity, facial features, or body structure (DILARANG mengubah wajah, identitas, proporsi tubuh, pakaian, rambut, pose, objek, atau komposisi). ` +
+    `STRICT PRESERVATION DIRECTIVE (ORIGINAL PHOTO IS SOURCE OF TRUTH): ` +
+    `DO NOT regenerate the image. DO NOT use generative fill. ` +
+    `DO NOT alter subject facial identity, face features, body structure, clothing, hair, pose, objects, or composition. ` +
     `Retain original source image geometry and perspective. Apply NON-DESTRUCTIVE AI COLOR GRADING and TONAL ENHANCEMENT ONLY.`
   );
 
@@ -210,9 +212,10 @@ export function buildColourGradingDirectives(config = DEFAULT_COLOUR_GRADING_CON
     );
   } else if (mode === 'SELECT_STYLE') {
     const styleObj = ALL_COLOUR_GRADING_STYLES.find(s => s.name === cfg.selectedStyle) || { name: cfg.selectedStyle, description: 'Visual style direction' };
+    const styleDescEn = toAiEnglishPrompt(styleObj.description);
     clauses.push(
       `COLOUR GRADING STYLE TARGET: "${styleObj.name}" (${styleObj.category}). ` +
-      `Description: ${styleObj.description}. ` +
+      `Description: ${styleDescEn}. ` +
       `Adaptive execution: Use this style as a visual target/color direction. Calculate per-photo adaptive adjustments rather than static numeric presets. ` +
       `Intensity: ${intensity}%.`
     );

@@ -174,70 +174,13 @@ export const TWO_WORLDS_ENVIRONMENT_STYLES = [
   { name: 'Cute Pastel Diorama', description: 'Diorama mini pastel dengan dunia fantasi yang sangat imut.' }
 ];
 
+import { formatTwoWorldsEnglishIntegration } from '../lib/promptEnglishTranslator.js';
+
 /**
- * Menyusun integrasi natural untuk PROMPT OPTIMAL pada mode 2 Dunia.
+ * Menyusun integrasi natural untuk PROMPT OPTIMAL pada mode 2 Dunia dalam Bahasa Inggris AI-readable.
  * Urutan Logika Sesuai Spesifikasi:
- * Prompt asli + hasil analisis gambar + Custom Request + Jenis Kelamin + Usia + Ras/Etnis + Style Subyek + Environment Style → PROMPT OPTIMAL
+ * Prompt asli + hasil analisis gambar + Custom Request + Karakter Demografis + Style Subyek + Environment Style → PROMPT OPTIMAL (ENGLISH)
  */
 export function buildTwoWorldsPromptIntegration(twoWorldsConfig, visionData) {
-  if (!twoWorldsConfig) return '';
-
-  const {
-    customRequest = '',
-    gender = 'Auto',
-    age = 'Auto',
-    ethnicity = 'Auto',
-    subjectStyle = 'Auto',
-    customSubjectStyle = '',
-    environmentStyle = 'Auto'
-  } = twoWorldsConfig;
-
-  const sections = [];
-
-  // 1. Custom Request
-  if (customRequest && customRequest.trim()) {
-    sections.push(`Instruksi Tambahan (Custom Request): ${customRequest.trim()}`);
-  }
-
-  // 2. Karakteristik Demografis Subjek (Jenis Kelamin, Usia, Ras/Etnis)
-  const isGenderExplicit = gender && !gender.toLowerCase().startsWith('auto');
-  const isAgeExplicit = age && !age.toLowerCase().startsWith('auto');
-  const isEthnicityExplicit = ethnicity && !ethnicity.toLowerCase().startsWith('auto');
-
-  if (isGenderExplicit || isAgeExplicit || isEthnicityExplicit) {
-    const charParts = [];
-    if (isGenderExplicit) charParts.push(`jenis kelamin: ${gender}`);
-    if (isAgeExplicit) charParts.push(`usia: ${age}`);
-    if (isEthnicityExplicit) charParts.push(`ras/etnis: ${ethnicity}`);
-
-    sections.push(
-      `Parameter Karakter Subjek: ${charParts.join(', ')}. Diterapkan secara eksplisit, proporsional, dan natural pada karakter yang diminta/ditambahkan melalui instruksi custom, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.`
-    );
-  }
-
-  // 3. Style Subyek (Hanya mengontrol tampilan, material, tekstur, pencahayaan visual subjek)
-  const isSubjectStyleExplicit = subjectStyle && !subjectStyle.toLowerCase().startsWith('auto');
-  if (isSubjectStyleExplicit) {
-    const finalSubjectStyle = subjectStyle === 'Custom'
-      ? (customSubjectStyle ? customSubjectStyle.trim() : 'Custom Realistic')
-      : subjectStyle;
-
-    sections.push(
-      `Style Subjek (Subject Style): Visual, rendering, materialitas, tekstur kulit dan busana subjek mengadopsi estetika ${finalSubjectStyle}. Memprioritaskan fidelitas anatomi alami, detail mikrotekstur autentik, dan pencahayaan terarah pada subjek.`
-    );
-  }
-
-  // 4. Environment Style (Hanya mengontrol dunia, background, ruang, atmosfer, pencahayaan global)
-  const isEnvStyleExplicit = environmentStyle && !environmentStyle.toLowerCase().startsWith('auto');
-  if (isEnvStyleExplicit) {
-    const matched = TWO_WORLDS_ENVIRONMENT_STYLES.find(e => e.name === environmentStyle);
-    const desc = matched ? matched.description : '';
-    const descClause = desc ? ` (${desc})` : '';
-
-    sections.push(
-      `Style Lingkungan (Environment Style): Dunia, latar belakang, atmosfer, material lingkungan, dan pencahayaan global menerapkan gaya ${environmentStyle}${descClause}. Seluruh identitas subjek asli, wajah, usia, bentuk fisik, dan busana tetap dipertahankan secara utuh tanpa terdistorsi oleh gaya lingkungan.`
-    );
-  }
-
-  return sections.join('\n\n');
+  return formatTwoWorldsEnglishIntegration(twoWorldsConfig, visionData);
 }
