@@ -28,6 +28,13 @@ import {
   buildTwoWorldsPromptIntegration
 } from '../src/data/twoWorldsData.js';
 import {
+  buildTwoWorldsEnrichmentSystemPrompt,
+  buildTwoWorldsEnrichmentUserPayload,
+  resolveTwoWorldsConflictsHeuristic,
+  sanitizeTwoWorldsPrompt,
+  extractShorthandsAndFlags
+} from '../src/lib/twoWorldsConflictResolver.js';
+import {
   COLOUR_GRADING_MODES,
   COLOUR_GRADING_CATEGORIES,
   ALL_COLOUR_GRADING_STYLES,
@@ -2601,6 +2608,147 @@ console.log('\n--- VERIFIKASI V3.6: GLOBAL ENGLISH PROMPT OPTIMAL (5 TABS & FITU
   assert(uiInputWithImg.html.includes('Catatan Colour Grading'), 'UI Label tetap Bahasa Indonesia');
   const uiInputDropzone = renderPromptInput({ activeMode: 'COLOUR_GRADING' });
   assert(uiInputDropzone.html.includes('Tarik &amp; lepas gambar'), 'UI Dropzone tetap Bahasa Indonesia');
+
+  // --- VERIFIKASI V3.6: TAB 2 DUNIA AI ENRICHMENT & CONFLICT RESOLUTION ---
+  console.log('\n--- VERIFIKASI V3.6: TAB 2 DUNIA AI ENRICHMENT & CONFLICT RESOLUTION ---');
+
+  // 1. Verifikasi System Prompt Harmonizer 2 Dunia
+  const systemPrompt = buildTwoWorldsEnrichmentSystemPrompt();
+  assert(systemPrompt.includes('PARAMETER MODIFIKASI KHUSUS 2 DUNIA (HIGHEST PRIORITY - ABSOLUTE SOURCE OF TRUTH)'), 'System Prompt memuat Priority 1: PARAMETER MODIFIKASI KHUSUS 2 DUNIA');
+  assert(systemPrompt.includes('PROMPT HASIL ANALISA 2 DUNIA (SECONDARY PRIORITY'), 'System Prompt memuat Priority 2: PROMPT HASIL ANALISA 2 DUNIA');
+  assert(systemPrompt.includes('PROMPT OPTIMAL (PROMPT UNDER AUDIT)'), 'System Prompt memuat Priority 3: PROMPT OPTIMAL');
+  assert(systemPrompt.includes('PARAMETER MODIFIKASI KHUSUS 2 DUNIA → PROMPT HASIL ANALISA 2 DUNIA → PROMPT OPTIMAL'), 'System Prompt memuat hierarki prioritas sumber yang tegas');
+  assert(systemPrompt.includes('ENVIRONMENT CONFLICT RESOLUTION'), 'System Prompt memuat aturan resolusi konflik Environment');
+  assert(systemPrompt.includes('SUBJECT & DEMOGRAPHIC CONFLICT RESOLUTION'), 'System Prompt memuat aturan resolusi konflik Demografi & Subjek Tambahan');
+  assert(systemPrompt.includes('ABSOLUTE PRESERVATION: The original character'), 'System Prompt memuat preservasi 100% identitas karakter sumber');
+  assert(systemPrompt.includes('NEGATIVE PROMPT & SHORTHAND INTEGRITY'), 'System Prompt memuat pembersihan negative prompt dan preservasi shorthand');
+  assert(systemPrompt.includes('natural, descriptive, clear English'), 'System Prompt mewajibkan prompt final dalam bahasa Inggris');
+
+  // 2. Verifikasi User Payload Builder
+  const sampleTwConfig = {
+    customRequest: 'tambahkan pria muda memakai hoodie kuning dan kacamata hitam',
+    gender: 'Laki-Laki',
+    age: '22 tahun',
+    ethnicity: 'Asia',
+    subjectStyle: 'Raw Photography Realism',
+    environmentStyle: 'SpongeBob Cinematic 3D'
+  };
+  const userPayload = buildTwoWorldsEnrichmentUserPayload({
+    optimalPrompt: '/imagine prompt: An Indonesian woman in a wooden classroom. /facelock --ar 16:9 --style raw --v 6.1',
+    generatedPrompt: 'An Indonesian woman in a green batik dress with long dark hair in a wooden classroom with chalkboards.',
+    twoWorldsConfig: sampleTwConfig
+  });
+  assert(userPayload.includes('=== 1. PARAMETER MODIFIKASI KHUSUS 2 DUNIA (PRIORITY 1 - SOURCE OF TRUTH) ==='), 'User Payload memuat blok parameter 2 dunia');
+  assert(userPayload.includes('tambahkan pria muda memakai hoodie kuning dan kacamata hitam'), 'User Payload memuat custom request');
+  assert(userPayload.includes('Gender Subyek Tambahan: "Laki-Laki"'), 'User Payload memuat gender subjek');
+  assert(userPayload.includes('Usia Karakter Tambahan: "22 tahun"'), 'User Payload memuat usia karakter');
+  assert(userPayload.includes('Suku / Etnis Karakter: "Asia"'), 'User Payload memuat etnis karakter');
+  assert(userPayload.includes('Environment Style (Dunia / Background): "SpongeBob Cinematic 3D"'), 'User Payload memuat environment style');
+  assert(userPayload.includes('=== 2. PROMPT HASIL ANALISA 2 DUNIA'), 'User Payload memuat blok hasil analisa 2 dunia');
+  assert(userPayload.includes('=== 3. PROMPT OPTIMAL'), 'User Payload memuat target audit Prompt Optimal');
+
+  // 3. Verifikasi Heuristic Conflict Resolver (Deterministic Local Fallback)
+  const conflictingOptimal = '/imagine prompt: A woman in green batik standing in a wooden classroom with chalkboards. Additional Directive: Add someone. /facelock /masterpiece --ar 16:9 --style raw --v 6.1 --no cartoon, 3d render';
+  const heuristicResult = resolveTwoWorldsConflictsHeuristic({
+    optimalPrompt: conflictingOptimal,
+    generatedPrompt: 'An Indonesian woman in a green batik dress with long dark hair standing in a wooden classroom with chalkboards.',
+    twoWorldsConfig: sampleTwConfig
+  });
+
+  assert(heuristicResult.success === true, 'Heuristic resolver berhasil dieksekusi');
+  assert(heuristicResult.enrichedPrompt.includes('seamlessly integrated into a SpongeBob Cinematic 3D environment') || heuristicResult.enrichedPrompt.includes('SpongeBob Cinematic 3D'), 'Konflik Environment diselesaikan: Latar belakang lama diselaraskan ke SpongeBob 3D');
+  assert(heuristicResult.enrichedPrompt.includes('Gender: Male') || heuristicResult.enrichedPrompt.includes('Male'), 'Konflik Demografi diselesaikan: Gender Male tersinkronisasi');
+  assert(heuristicResult.enrichedPrompt.includes('22 years old'), 'Konflik Demografi diselesaikan: Usia 22 tahun tersinkronisasi');
+  assert(heuristicResult.enrichedPrompt.includes('Ethnicity: Asia'), 'Konflik Demografi diselesaikan: Etnis Asia tersinkronisasi');
+  assert(heuristicResult.enrichedPrompt.includes('/facelock') && heuristicResult.enrichedPrompt.includes('/masterpiece'), 'Preservasi Shorthand: /facelock dan /masterpiece tetap ada');
+  assert(heuristicResult.enrichedPrompt.includes('--ar 16:9') && heuristicResult.enrichedPrompt.includes('--style raw') && heuristicResult.enrichedPrompt.includes('--v 6.1'), 'Preservasi Midjourney: --ar, --style, dan --v tetap utuh');
+  assert(!heuristicResult.enrichedPrompt.includes('--no cartoon, 3d render'), 'Sanitasi Negative Prompt: token 3d render/cartoon yang kontradiktif dengan style 3D dibersihkan');
+  assert(heuristicResult.conflictsResolved.length > 0, 'Mencatat daftar konflik yang diselesaikan');
+
+  // 4. Verifikasi Sanitizer Prompt 2 Dunia
+  const sanitized = sanitizeTwoWorldsPrompt({
+    enrichedPrompt: 'A realistic woman with an added companion in Bikini Bottom underwater world. /facelock --no 3d render, cartoon, blurry',
+    optimalPrompt: conflictingOptimal,
+    twoWorldsConfig: sampleTwConfig,
+    originalShorthands: ['/facelock', '/masterpiece']
+  });
+  assert(sanitized.includes('/facelock') && sanitized.includes('/masterpiece'), 'Sanitizer memastikan semua shorthand awal terlindungi');
+  assert(!sanitized.includes('3d render') && !sanitized.includes('cartoon,'), 'Sanitizer membersihkan larangan 3D/cartoon saat style 3D aktif');
+
+  // 5. Verifikasi GeminiService.enrichTwoWorldsPrompt (Mock Call & Heuristic Fallback)
+  const svc2w = new GeminiService(INITIAL_SHORTHAND_CATALOG);
+  const origFetch2w = globalThis.fetch;
+  const origKey2w = StorageService.getApiKey;
+
+  // Uji 5A: Mock Sukses AI Call
+  StorageService.getApiKey = () => 'AIzaSyMockKeyForTwoWorldsTest';
+  globalThis.fetch = async (url, options) => {
+    return {
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    enrichedPrompt: '/imagine prompt: An Indonesian woman with long dark hair in a green batik dress, standing alongside a 22-year-old Asian young man wearing a yellow hoodie and black sunglasses, set within the vibrant underwater world of SpongeBob Cinematic 3D with colorful corals and aquatic ambient lighting. All original facial features and attire of the woman are strictly preserved. /facelock /masterpiece --ar 16:9 --style raw --v 6.1 --no blurry, deformed',
+                    conflictsResolved: [
+                      'Replaced wooden classroom background with SpongeBob Cinematic 3D underwater setting',
+                      'Resolved added subject details to match 22yo Asian male wearing yellow hoodie and sunglasses',
+                      'Removed contradictory 3D render negative prompt'
+                    ]
+                  })
+                }
+              ]
+            }
+          }
+        ]
+      })
+    };
+  };
+
+  const aiResult2w = await svc2w.enrichTwoWorldsPrompt({
+    optimalPrompt: conflictingOptimal,
+    generatedPrompt: 'An Indonesian woman in a green batik dress in a classroom.',
+    twoWorldsConfig: sampleTwConfig
+  });
+
+  assert(aiResult2w.success === true, 'enrichTwoWorldsPrompt AI berhasil dijalankan');
+  assert(aiResult2w.enrichedPrompt.includes('SpongeBob Cinematic 3D'), 'Prompt hasil AI selaras dengan Environment Style SpongeBob');
+  assert(aiResult2w.enrichedPrompt.includes('22-year-old Asian young man'), 'Prompt hasil AI selaras dengan demografi pria 22 tahun Asia');
+  assert(aiResult2w.enrichedPrompt.includes('yellow hoodie'), 'Prompt hasil AI selaras dengan custom request hoodie kuning');
+  assert(aiResult2w.enrichedPrompt.includes('Indonesian woman') && aiResult2w.enrichedPrompt.includes('green batik dress'), 'Prompt hasil AI mempreservasi 100% karakter asli');
+  assert(aiResult2w.enrichedPrompt.includes('/facelock') && aiResult2w.enrichedPrompt.includes('/masterpiece'), 'Prompt hasil AI mempertahankan seluruh shorthand terpasang');
+  assert(aiResult2w.conflictsResolved.length === 3, 'Mengembalikan daftar konflik yang diatasi oleh AI');
+
+  // Uji 5B: Fallback saat API gagal
+  globalThis.fetch = async () => ({ ok: false, status: 500, text: async () => 'Error' });
+  const fallbackRes2w = await svc2w.enrichTwoWorldsPrompt({
+    optimalPrompt: conflictingOptimal,
+    generatedPrompt: 'An Indonesian woman in a green batik dress in a classroom.',
+    twoWorldsConfig: sampleTwConfig
+  });
+  assert(fallbackRes2w.success === true, 'enrichTwoWorldsPrompt fallback ke Heuristic saat API error');
+  assert(fallbackRes2w.modelUsed === 'HEURISTIC_FALLBACK', 'Menandai modelUsed sebagai HEURISTIC_FALLBACK');
+
+  // Uji 5C: Fallback saat key kosong
+  StorageService.getApiKey = () => '';
+  const noKeyRes2w = await svc2w.enrichTwoWorldsPrompt({
+    optimalPrompt: conflictingOptimal,
+    generatedPrompt: 'An Indonesian woman in a green batik dress in a classroom.',
+    twoWorldsConfig: sampleTwConfig
+  });
+  assert(noKeyRes2w.success === true, 'enrichTwoWorldsPrompt tetap bekerja dengan Heuristic Resolver saat API key belum diisi');
+  assert(noKeyRes2w.modelUsed === 'HEURISTIC_RESOLVER', 'Menandai modelUsed sebagai HEURISTIC_RESOLVER');
+
+  // Restore fetch dan apiKey
+  globalThis.fetch = origFetch2w;
+  StorageService.getApiKey = origKey2w;
+
+  // 6. ISOLASI MUTLAK: Verifikasi Tab Lain TIDAK Menggunakan / Terpengaruh 2 Dunia
+  assert(typeof svc2w.enrichPrompt === 'function', 'geminiService.enrichPrompt tetap tersedia untuk tab lain');
+  assert(typeof svc2w.enrichTwoWorldsPrompt === 'function', 'geminiService.enrichTwoWorldsPrompt terisolasi khusus tab 2 dunia');
 }
 
 console.log('\n==================================================');

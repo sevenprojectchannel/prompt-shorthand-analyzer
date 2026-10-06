@@ -15,6 +15,12 @@ import { buildTwoWorldsPromptIntegration } from '../data/twoWorldsData.js';
 import { buildColourGradingDirectives, DEFAULT_COLOUR_GRADING_CONFIG } from '../data/colourGradingData.js';
 import { calculateAdaptiveAdjustments } from '../lib/colourGradingEngine.js';
 import { toAiEnglishPrompt, formatImageRepairEnglishDirective } from '../lib/promptEnglishTranslator.js';
+import {
+  buildTwoWorldsEnrichmentSystemPrompt,
+  buildTwoWorldsEnrichmentUserPayload,
+  resolveTwoWorldsConflictsHeuristic,
+  sanitizeTwoWorldsPrompt
+} from '../lib/twoWorldsConflictResolver.js';
 
 export const GEMINI_STATUS = {
   CONNECTED: 'CONNECTED',     // 🟢 Tersambung
@@ -834,6 +840,136 @@ Format respons HANYA berupa JSON valid:
 
     throw lastError || new Error('Gagal memperkaya prompt dengan Gemini.');
   }
+
+  /**
+   * Memperkaya dan menyelaraskan konflik pada Prompt Optimal KHUSUS Tab 2 Dunia (V3.6 Patch).
+   * Menggunakan:
+   * 1. PARAMETER MODIFIKASI KHUSUS 2 DUNIA (Priority #1 - Source of Truth)
+   * 2. PROMPT HASIL ANALISA 2 DUNIA (Priority #2 - Konteks Karakter / Gambar Asli)
+   * 3. PROMPT OPTIMAL (Priority #3 - Target Audit)
+   */
+  async enrichTwoWorldsPrompt({ optimalPrompt, generatedPrompt = '', twoWorldsConfig = null, analysisResult = null }) {
+    if (!optimalPrompt || typeof optimalPrompt !== 'string' || !optimalPrompt.trim()) {
+      throw new Error('Prompt optimal 2 Dunia kosong.');
+    }
+
+    const key = StorageService.getApiKey() ? StorageService.getApiKey().trim() : '';
+    const preferredModel = StorageService.getModel() || 'gemini-2.0-flash';
+
+    if (!key) {
+      const heuristicRes = resolveTwoWorldsConflictsHeuristic({
+        optimalPrompt,
+        generatedPrompt,
+        twoWorldsConfig,
+        analysisResult
+      });
+      return {
+        success: true,
+        enrichedPrompt: heuristicRes.enrichedPrompt,
+        conflictsResolved: heuristicRes.conflictsResolved,
+        modelUsed: 'HEURISTIC_RESOLVER'
+      };
+    }
+
+    const originalShorthands = (optimalPrompt.match(/\/[a-zA-Z0-9_\-:]+/g) || []);
+
+    const candidateModels = [
+      preferredModel,
+      'gemini-3.5-flash-lite',
+      'gemini-2.0-flash',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.5-pro'
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i && (m === 'gemini-3.5-flash-lite' || (!m.includes('3.5') && !m.includes('3.8'))));
+
+    const systemInstruction = buildTwoWorldsEnrichmentSystemPrompt();
+    const userPromptPayload = buildTwoWorldsEnrichmentUserPayload({
+      optimalPrompt,
+      generatedPrompt,
+      twoWorldsConfig
+    });
+
+    const requestBody = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `${systemInstruction}\n\n${userPromptPayload}`
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json'
+      }
+    };
+
+    let lastError = null;
+
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error('Respon Gemini kosong.');
+
+        const parsed = this.extractJson(rawText);
+        let enrichedText = parsed.enrichedPrompt || parsed.prompt || (typeof parsed === 'string' ? parsed : '');
+
+        if (!enrichedText || typeof enrichedText !== 'string' || !enrichedText.trim()) {
+          throw new Error('Hasil pengayaan AI 2 Dunia kosong atau tidak valid.');
+        }
+
+        enrichedText = sanitizeTwoWorldsPrompt({
+          enrichedPrompt: enrichedText,
+          optimalPrompt,
+          twoWorldsConfig,
+          originalShorthands
+        });
+
+        return {
+          success: true,
+          enrichedPrompt: enrichedText,
+          conflictsResolved: parsed.conflictsResolved || [],
+          modelUsed: model
+        };
+      } catch (err) {
+        lastError = err;
+        console.warn(`Enrich 2 Dunia dengan model ${model} gagal:`, err.message);
+        continue;
+      }
+    }
+
+    // Graceful fallback ke Heuristic jika semua model API gagal
+    console.warn('Fallback ke Heuristic Conflict Resolver untuk 2 Dunia:', lastError?.message);
+    const fallbackRes = resolveTwoWorldsConflictsHeuristic({
+      optimalPrompt,
+      generatedPrompt,
+      twoWorldsConfig,
+      analysisResult
+    });
+
+    return {
+      success: true,
+      enrichedPrompt: fallbackRes.enrichedPrompt,
+      conflictsResolved: fallbackRes.conflictsResolved,
+      modelUsed: 'HEURISTIC_FALLBACK'
+    };
+  }
+
   /**
    * Helper: Deteksi rasio aspek visual (aspect ratio) gambar dari atribut file atau header base64
    */

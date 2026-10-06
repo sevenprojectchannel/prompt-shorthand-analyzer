@@ -440,13 +440,34 @@ class App {
     this.render();
 
     try {
-      this.showToast('Memperkaya prompt dengan Gemini AI...', 'info');
-      const res = await this.geminiService.enrichPrompt(currentOptimal, this.analysisResult);
-      if (res && res.success && res.enrichedPrompt) {
-        this.analysisResult.optimalPrompt = res.enrichedPrompt;
-        this.showToast('✨ Prompt Optimal berhasil diperkaya dengan AI!', 'success');
+      const isTwoWorlds = this.activeMode === 'TWO_WORLDS' || this.analysisResult?.mode === 'TWO_WORLDS';
+
+      if (isTwoWorlds) {
+        this.showToast('Menyelaraskan & memperkaya prompt 2 Dunia dengan Gemini AI...', 'info');
+        const res = await this.geminiService.enrichTwoWorldsPrompt({
+          optimalPrompt: currentOptimal,
+          generatedPrompt: this.analysisResult?.generatedPrompt || '',
+          twoWorldsConfig: this.twoWorldsConfig,
+          analysisResult: this.analysisResult
+        });
+        if (res && res.success && res.enrichedPrompt) {
+          this.analysisResult.optimalPrompt = res.enrichedPrompt;
+          const toastMsg = (res.conflictsResolved && res.conflictsResolved.length > 0)
+            ? '✨ Prompt Optimal 2 Dunia berhasil diperkaya & konflik diselaraskan!'
+            : '✨ Prompt Optimal 2 Dunia berhasil diperkaya dengan AI!';
+          this.showToast(toastMsg, 'success');
+        } else {
+          throw new Error('Hasil pengayaan AI 2 Dunia tidak valid.');
+        }
       } else {
-        throw new Error('Hasil pengayaan AI tidak valid.');
+        this.showToast('Memperkaya prompt dengan Gemini AI...', 'info');
+        const res = await this.geminiService.enrichPrompt(currentOptimal, this.analysisResult);
+        if (res && res.success && res.enrichedPrompt) {
+          this.analysisResult.optimalPrompt = res.enrichedPrompt;
+          this.showToast('✨ Prompt Optimal berhasil diperkaya dengan AI!', 'success');
+        } else {
+          throw new Error('Hasil pengayaan AI tidak valid.');
+        }
       }
     } catch (err) {
       console.warn('Enrich prompt error:', err);
