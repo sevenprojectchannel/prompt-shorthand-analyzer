@@ -308,6 +308,9 @@ export function renderPromptInput({
                 ${TWO_WORLDS_SUBJECT_STYLES.map(s => `
                   <option value="${s}" ${(twoWorldsConfig?.subjectStyle === s || (!twoWorldsConfig?.subjectStyle && s.startsWith('Auto'))) ? 'selected' : ''}>${s}</option>
                 `).join('')}
+                ${(twoWorldsConfig?.subjectStyle && !TWO_WORLDS_SUBJECT_STYLES.includes(twoWorldsConfig.subjectStyle)) ? `
+                  <option value="${twoWorldsConfig.subjectStyle}" selected>${twoWorldsConfig.subjectStyle}</option>
+                ` : ''}
               </select>
               <input 
                 type="text" 
@@ -330,6 +333,9 @@ export function renderPromptInput({
                 ${TWO_WORLDS_ENVIRONMENT_STYLES.map(env => `
                   <option value="${env.name}" ${(twoWorldsConfig?.environmentStyle === env.name || (!twoWorldsConfig?.environmentStyle && env.name.startsWith('Auto'))) ? 'selected' : ''}>${env.name}</option>
                 `).join('')}
+                ${(twoWorldsConfig?.environmentStyle && !TWO_WORLDS_ENVIRONMENT_STYLES.some(e => e.name === twoWorldsConfig.environmentStyle)) ? `
+                  <option value="${twoWorldsConfig.environmentStyle}" selected>${twoWorldsConfig.environmentStyle}</option>
+                ` : ''}
               </select>
               <div class="two-worlds-desc-box" id="tw-env-desc">
                 ${(TWO_WORLDS_ENVIRONMENT_STYLES.find(e => e.name === (twoWorldsConfig?.environmentStyle || 'Auto (Smart Detection)'))?.description) || 'Sistem mendeteksi dan menentukan style lingkungan paling harmonis berdasarkan gambar sumber.'}
@@ -697,7 +703,7 @@ export function renderPromptInput({
         const twEnvStyle = container.querySelector('#tw-env-style');
         const twEnvDesc = container.querySelector('#tw-env-desc');
 
-        const triggerTwUpdate = () => {
+        const triggerTwUpdate = (changedField = null) => {
           if (!onTwoWorldsConfigChange) return;
           onTwoWorldsConfigChange({
             customRequest: twCustomReq ? twCustomReq.value : '',
@@ -707,7 +713,7 @@ export function renderPromptInput({
             subjectStyle: twSubjectStyle ? twSubjectStyle.value : 'Auto (Smart Detection)',
             customSubjectStyle: twCustomSubjectStyle ? twCustomSubjectStyle.value : '',
             environmentStyle: twEnvStyle ? twEnvStyle.value : 'Auto (Smart Detection)'
-          });
+          }, changedField);
         };
 
         if (twPromptTemplate) {
@@ -716,7 +722,7 @@ export function renderPromptInput({
             const matched = TWO_WORLDS_PROMPT_TEMPLATES.find(t => t.id === selectedVal);
             if (matched && matched.id !== 'none' && matched.text && twCustomReq) {
               twCustomReq.value = matched.text;
-              triggerTwUpdate();
+              triggerTwUpdate('customRequest');
             }
           });
         }
@@ -731,17 +737,17 @@ export function renderPromptInput({
                 twPromptTemplate.value = 'none';
               }
             }
-            triggerTwUpdate();
+            triggerTwUpdate('customRequest');
           });
         }
         if (twGender) {
-          twGender.addEventListener('change', triggerTwUpdate);
+          twGender.addEventListener('change', () => triggerTwUpdate('gender'));
         }
         if (twAge) {
-          twAge.addEventListener('change', triggerTwUpdate);
+          twAge.addEventListener('change', () => triggerTwUpdate('age'));
         }
         if (twEthnicity) {
-          twEthnicity.addEventListener('change', triggerTwUpdate);
+          twEthnicity.addEventListener('change', () => triggerTwUpdate('ethnicity'));
         }
         if (twSubjectStyle) {
           twSubjectStyle.addEventListener('change', () => {
@@ -750,11 +756,11 @@ export function renderPromptInput({
               twCustomSubjectStyle.style.display = isCustom ? 'block' : 'none';
               if (isCustom) twCustomSubjectStyle.focus();
             }
-            triggerTwUpdate();
+            triggerTwUpdate('subjectStyle');
           });
         }
         if (twCustomSubjectStyle) {
-          twCustomSubjectStyle.addEventListener('input', triggerTwUpdate);
+          twCustomSubjectStyle.addEventListener('input', () => triggerTwUpdate('customSubjectStyle'));
         }
         if (twEnvStyle) {
           twEnvStyle.addEventListener('change', () => {
@@ -763,7 +769,7 @@ export function renderPromptInput({
             if (twEnvDesc) {
               twEnvDesc.textContent = matched ? matched.description : '';
             }
-            triggerTwUpdate();
+            triggerTwUpdate('environmentStyle');
           });
         }
       }

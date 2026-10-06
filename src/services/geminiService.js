@@ -21,6 +21,7 @@ import {
   resolveTwoWorldsConflictsHeuristic,
   sanitizeTwoWorldsPrompt
 } from '../lib/twoWorldsConflictResolver.js';
+import { detectTwoWorldsSmartParameters } from '../lib/twoWorldsSmartDetector.js';
 
 export const GEMINI_STATUS = {
   CONNECTED: 'CONNECTED',     // 🟢 Tersambung
@@ -1588,7 +1589,7 @@ Format respons HANYA berupa JSON valid:
     // 1. Multimodal AI Vision Analysis jika API Key terhubung dan data base64 tersedia
     if (key && imageBase64) {
       try {
-        const aiVisionResult = await this.executeMultimodalImageAnalysis(imageBase64, mimeType, referencePrompt, key, model, preferredLang, targetAspectRatio);
+        const aiVisionResult = await this.executeMultimodalImageAnalysis(imageBase64, mimeType, referencePrompt, key, model, preferredLang, targetAspectRatio, isTwoWorlds);
         if (aiVisionResult && (aiVisionResult.mainDescription || aiVisionResult.subjectDescription)) {
           visionData = aiVisionResult;
           source = 'GEMINI_AI';
@@ -1640,8 +1641,39 @@ Format respons HANYA berupa JSON valid:
     // Shorthand terpasang secara default adalah Primary Shorthands [✓]
     const installedShorthands = primaryShorthands.map(s => s.code);
 
+    // Smart Detection Khusus Mode 2 Dunia
+    let twoWorldsSmartDetection = null;
+    let effectiveTwoWorldsConfig = twoWorldsConfig ? { ...twoWorldsConfig } : null;
+    if (isTwoWorlds) {
+      twoWorldsSmartDetection = detectTwoWorldsSmartParameters(
+        visionData,
+        imageFile,
+        visualTelemetry,
+        twoWorldsConfig
+      );
+      visionData.smartDetection = twoWorldsSmartDetection;
+
+      if (effectiveTwoWorldsConfig && twoWorldsSmartDetection) {
+        if (!effectiveTwoWorldsConfig.gender || effectiveTwoWorldsConfig.gender.startsWith('Auto')) {
+          effectiveTwoWorldsConfig.gender = twoWorldsSmartDetection.gender;
+        }
+        if (!effectiveTwoWorldsConfig.age || effectiveTwoWorldsConfig.age.startsWith('Auto')) {
+          effectiveTwoWorldsConfig.age = twoWorldsSmartDetection.age;
+        }
+        if (!effectiveTwoWorldsConfig.ethnicity || effectiveTwoWorldsConfig.ethnicity.startsWith('Auto')) {
+          effectiveTwoWorldsConfig.ethnicity = twoWorldsSmartDetection.ethnicity;
+        }
+        if (!effectiveTwoWorldsConfig.subjectStyle || effectiveTwoWorldsConfig.subjectStyle.startsWith('Auto')) {
+          effectiveTwoWorldsConfig.subjectStyle = twoWorldsSmartDetection.subjectStyle;
+        }
+        if (!effectiveTwoWorldsConfig.environmentStyle || effectiveTwoWorldsConfig.environmentStyle.startsWith('Auto')) {
+          effectiveTwoWorldsConfig.environmentStyle = twoWorldsSmartDetection.environmentStyle;
+        }
+      }
+    }
+
     // 6. GENERATE PROMPT OPTIMAL FINAL (Struktur Deskriptif + Shorthands Terpasang + Params + Negative Prompt)
-    const optimalPrompt = this.assembleOptimalImagePrompt(visionData, installedShorthands, isTwoWorlds ? twoWorldsConfig : null);
+    const optimalPrompt = this.assembleOptimalImagePrompt(visionData, installedShorthands, isTwoWorlds ? (effectiveTwoWorldsConfig || twoWorldsConfig) : null);
 
     // 7. MAKSUD PROMPT
     const intent = {
@@ -1758,6 +1790,7 @@ Format respons HANYA berupa JSON valid:
         type: mimeType,
         aspectRatio: visionData.aspectRatio || '16:9'
       },
+      twoWorldsSmartDetection: isTwoWorlds ? twoWorldsSmartDetection : null,
       timestamp: new Date().toISOString()
     };
   }
@@ -1765,7 +1798,7 @@ Format respons HANYA berupa JSON valid:
   /**
    * Helper: Vision Multimodal Analysis via Gemini REST API
    */
-  async executeMultimodalImageAnalysis(imageBase64, mimeType, referencePrompt, key, model, preferredLang = 'id', targetAspectRatio = 'auto') {
+  async executeMultimodalImageAnalysis(imageBase64, mimeType, referencePrompt, key, model, preferredLang = 'id', targetAspectRatio = 'auto', isTwoWorlds = false) {
     // 1. Sanitize model list: prioritize gemini-2.0-flash and gemini-1.5-flash, filter out deprecated models
     const cleanModel = (model || 'gemini-2.0-flash').trim().replace(/^models\//, '');
     const candidateModels = [
@@ -1803,6 +1836,17 @@ Format respons HANYA berupa JSON valid:
       normalizedMime = 'image/jpeg';
     }
 
+    const twoWorldsSmartDirective = isTwoWorlds ? `
+4. KHUSUS MODE 2 DUNIA (SMART DETECTION OTOMATIS):
+Sertakan juga objek "smartDetection" di root JSON respons dengan nilai spesifik hasil deteksi gambar aktual:
+"smartDetection": {
+  "gender": "Laki-Laki" | "Perempuan",
+  "age": "Perkiraan usia spesifik (contoh: 25 tahun)",
+  "ethnicity": "Asia" | "Asia Tenggara" | "Asia Timur" | "Asia Selatan" | "Eropa" | "Timur Tengah" | "Afrika" | "Amerika Latin",
+  "subjectStyle": "Nama spesifik style subjek (contoh: LEGO Style, 3D Cartoon Style, Anime Style, Realistic Human Style, Claymation Style, Stylized 3D Character, dll.)",
+  "environmentStyle": "Nama spesifik style environment (contoh: Candy World 3D Style, Fantasy Environment, Dreamy Pastel 3D, Realistic Environment, Natural Lighting, dll.)"
+}` : '';
+
     const systemInstruction = `Anda adalah Ahli Analisis Gambar Vision AI & Prompt Engineering Profesional.
 Tugas Anda: Menganalisis gambar yang diunggah secara objektif, mendalam, dan akurat sebagai SATU-SATUNYA SOURCE OF TRUTH.
 
@@ -1815,7 +1859,7 @@ ATURAN MUTLAK:
    - Pencahayaan (studio softbox, daylight alami, directional, ambient, highlight, shadow).
    - Lingkungan & latar belakang (studio foto, kantor, indoor, alam outdoor, warna background).
    - Palet warna, white balance, saturasi, tone.
-    - Gaya fotografi atau gaya visual asli (realistis, karakter 3D animasi, chibi figurine, digital render).
+    - Gaya fotografi atau gaya visual asli (realistis, karakter 3D animasi, chibi figurine, digital render).${twoWorldsSmartDirective}
 
 3. ATURAN BAHASA MUTLAK (GLOBAL PROMPT OPTIMAL):
 Seluruh atribut visual yang menjadi bagian dari prompt (mainDescription, visualDetails, subject, pose, outfit, environment, lighting, composition, cameraAngle, style, colorTone, negativePrompt) WAJIB ditulis dalam BAHASA INGGRIS yang natural, deskriptif, spesifik, dan siap digunakan untuk AI image generator (Midjourney/SDXL/DALL-E).

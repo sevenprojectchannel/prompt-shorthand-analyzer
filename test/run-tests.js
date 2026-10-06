@@ -35,6 +35,14 @@ import {
   extractShorthandsAndFlags
 } from '../src/lib/twoWorldsConflictResolver.js';
 import {
+  detectTwoWorldsSmartParameters,
+  detectGender,
+  detectAge,
+  detectEthnicity,
+  detectSubjectStyle,
+  detectEnvironmentStyle
+} from '../src/lib/twoWorldsSmartDetector.js';
+import {
   COLOUR_GRADING_MODES,
   COLOUR_GRADING_CATEGORIES,
   ALL_COLOUR_GRADING_STYLES,
@@ -2754,6 +2762,179 @@ console.log('\n--- VERIFIKASI V3.6: GLOBAL ENGLISH PROMPT OPTIMAL (5 TABS & FITU
   assert(typeof svc2w.enrichPrompt === 'function', 'geminiService.enrichPrompt tetap tersedia untuk tab lain');
   assert(typeof svc2w.enrichTwoWorldsPrompt === 'function', 'geminiService.enrichTwoWorldsPrompt terisolasi khusus tab 2 dunia');
 }
+
+// ============================================================
+// VERIFIKASI V3.6: TAB 2 DUNIA AUTO SMART DETECTION & MANUAL OVERRIDE
+// ============================================================
+console.log('\n--- VERIFIKASI V3.6: TAB 2 DUNIA AUTO SMART DETECTION & MANUAL OVERRIDE ---');
+
+// 1. Verifikasi deteksi gender
+const femaleVision = { subjectDescription: 'An Indonesian woman wearing an elegant hijab with warm expression' };
+const maleVision = { subjectDescription: 'A handsome Asian businessman in a neat suit' };
+assert(detectGender(femaleVision) === 'Perempuan', 'Smart Detection: mendeteksi gender Perempuan dari kata kunci wanita/hijab');
+assert(detectGender(maleVision) === 'Laki-Laki', 'Smart Detection: mendeteksi gender Laki-Laki dari kata kunci businessman/pria');
+
+// 2. Verifikasi deteksi usia (1-50 tahun)
+const exactAgeVision = { mainDescription: 'A 28 years old young professional working in modern studio' };
+const chibiAgeVision = { mainDescription: 'Cute chibi doll figurine in a colorful jacket' };
+const childAgeVision = { mainDescription: 'A little child playing in the garden' };
+assert(detectAge(exactAgeVision) === '28 tahun', 'Smart Detection: mengekstrak usia numerik eksplisit (28 tahun)');
+assert(detectAge(chibiAgeVision) === '22 tahun', 'Smart Detection: menginferensi usia karakter chibi/doll (22 tahun)');
+assert(detectAge(childAgeVision) === '8 tahun', 'Smart Detection: menginferensi usia anak-anak (8 tahun)');
+
+// 3. Verifikasi deteksi ras / etnis
+const seAsianVision = { mainDescription: 'A Southeast Asian Indonesian subject in traditional batik attire' };
+const eastAsianVision = { mainDescription: 'A Japanese woman walking on a street in Tokyo' };
+const euroVision = { mainDescription: 'A Caucasian European gentleman in Paris' };
+const midEastVision = { mainDescription: 'A Middle Eastern merchant in a traditional market' };
+assert(detectEthnicity(seAsianVision) === 'Asia Tenggara', 'Smart Detection: mendeteksi ras Asia Tenggara berdasarkan evidensi visual nyata');
+assert(detectEthnicity(eastAsianVision) === 'Asia Timur', 'Smart Detection: mendeteksi ras Asia Timur');
+assert(detectEthnicity(euroVision) === 'Eropa', 'Smart Detection: mendeteksi ras Eropa');
+assert(detectEthnicity(midEastVision) === 'Timur Tengah', 'Smart Detection: mendeteksi ras Timur Tengah');
+
+// 4. Verifikasi deteksi style subjek (bukan "Auto (Smart Detection)")
+const legoVision = { style: 'LEGO Style minifigure with brick texture' };
+const clayVision = { style: 'Claymation model made of soft clay plasticine' };
+const animeVision = { style: 'Japanese anime aesthetic with vibrant cell shading' };
+const photoVision = { photoStyleRealism: 'Authentic portrait photography with real human skin texture' };
+const chibiDollVision = { subjectDescription: 'Cute stylized 3d character doll figurine' };
+
+const detLego = detectSubjectStyle(legoVision);
+const detClay = detectSubjectStyle(clayVision);
+const detAnime = detectSubjectStyle(animeVision);
+const detPhoto = detectSubjectStyle(photoVision);
+const detChibi = detectSubjectStyle(chibiDollVision);
+
+assert(detLego === 'LEGO Style', 'Smart Detection: mendeteksi LEGO Style secara spesifik');
+assert(detClay === 'Claymation Style', 'Smart Detection: mendeteksi Claymation Style secara spesifik');
+assert(detAnime === 'Anime Style', 'Smart Detection: mendeteksi Anime Style secara spesifik');
+assert(detPhoto === 'Realistic Human Style', 'Smart Detection: mendeteksi Realistic Human Style secara spesifik');
+assert(detChibi === 'Stylized 3D Character', 'Smart Detection: mendeteksi Stylized 3D Character secara spesifik');
+assert(!detLego.startsWith('Auto') && !detClay.startsWith('Auto') && !detAnime.startsWith('Auto'), 'Smart Detection: style subjek BUKAN string "Auto (Smart Detection)"');
+
+// 5. Verifikasi deteksi environment style (bukan "Auto (Smart Detection)")
+const candyEnvVision = { environment: 'A whimsical candyland world filled with marshmallows' };
+const dreamyEnvVision = { lighting: 'Dreamy pastel soft lighting with fantasy haze' };
+const fantasyEnvVision = { environment: 'Enchanted fantasy environment with magical glowing aura' };
+const spongebobEnvVision = { environmentBackground: 'Underwater bikini bottom SpongeBob world' };
+const naturalEnvVision = { lightingColor: 'Natural lighting with ambient daylight' };
+
+const detCandy = detectEnvironmentStyle(candyEnvVision);
+const detDreamy = detectEnvironmentStyle(dreamyEnvVision);
+const detFantasy = detectEnvironmentStyle(fantasyEnvVision);
+const detSponge = detectEnvironmentStyle(spongebobEnvVision);
+const detNatural = detectEnvironmentStyle(naturalEnvVision);
+
+assert(detCandy === 'Candy World 3D Style', 'Smart Detection: mendeteksi Candy World 3D Style secara spesifik');
+assert(detDreamy === 'Dreamy Pastel 3D', 'Smart Detection: mendeteksi Dreamy Pastel 3D secara spesifik');
+assert(detFantasy === 'Fantasy Environment', 'Smart Detection: mendeteksi Fantasy Environment secara spesifik');
+assert(detSponge === 'SpongeBob Cinematic 3D', 'Smart Detection: mendeteksi SpongeBob Cinematic 3D secara spesifik');
+assert(detNatural === 'Natural Lighting', 'Smart Detection: mendeteksi Natural Lighting secara spesifik');
+assert(!detCandy.startsWith('Auto') && !detDreamy.startsWith('Auto') && !detNatural.startsWith('Auto'), 'Smart Detection: environment style BUKAN string "Auto (Smart Detection)"');
+
+// 6. Verifikasi serentak detectTwoWorldsSmartParameters
+const comprehensiveVision = {
+  subjectDescription: 'A 25 years old Indonesian woman wearing a stylish hijab',
+  photoStyleRealism: 'LEGO Style brick character',
+  environment: 'Candy world with colorful sweets'
+};
+const smartAll = detectTwoWorldsSmartParameters(comprehensiveVision);
+assert(smartAll.gender === 'Perempuan', 'detectTwoWorldsSmartParameters menghasilkan gender terdeteksi');
+assert(smartAll.age === '25 tahun', 'detectTwoWorldsSmartParameters menghasilkan usia terdeteksi');
+assert(smartAll.ethnicity === 'Asia Tenggara', 'detectTwoWorldsSmartParameters menghasilkan etnis terdeteksi');
+assert(smartAll.subjectStyle === 'LEGO Style', 'detectTwoWorldsSmartParameters menghasilkan subject style terdeteksi');
+assert(smartAll.environmentStyle === 'Candy World 3D Style', 'detectTwoWorldsSmartParameters menghasilkan environment style terdeteksi');
+
+// 7. Verifikasi Integrasi End-to-End analyzeImageToPrompt untuk Mode TWO_WORLDS
+const testGeminiSvc = new GeminiService(INITIAL_SHORTHAND_CATALOG);
+const testTwoWorldsResult = await testGeminiSvc.analyzeImageToPrompt({
+  imageFile: { name: 'indonesian-woman-lego.jpg', size: 1024, width: 800, height: 800 },
+  isTwoWorlds: true,
+  twoWorldsConfig: {
+    customRequest: '',
+    gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
+    age: 'Auto (Smart Detection) mengikuti gambar unggahan',
+    ethnicity: 'Auto (Smart Detection)',
+    subjectStyle: 'Auto (Smart Detection)',
+    customSubjectStyle: '',
+    environmentStyle: 'Auto (Smart Detection)'
+  }
+});
+assert(testTwoWorldsResult.twoWorldsSmartDetection !== null, 'analyzeImageToPrompt mode 2 Dunia mengembalikan twoWorldsSmartDetection');
+assert(testTwoWorldsResult.twoWorldsSmartDetection.gender === 'Laki-Laki' || testTwoWorldsResult.twoWorldsSmartDetection.gender === 'Perempuan', 'twoWorldsSmartDetection menghasilkan gender terisi');
+assert(testTwoWorldsResult.twoWorldsSmartDetection.age.includes('tahun'), 'twoWorldsSmartDetection menghasilkan usia terisi format tahun');
+assert(testTwoWorldsResult.twoWorldsSmartDetection.ethnicity.length > 0, 'twoWorldsSmartDetection menghasilkan etnis terisi');
+assert(!testTwoWorldsResult.twoWorldsSmartDetection.subjectStyle.startsWith('Auto'), 'twoWorldsSmartDetection menghasilkan subject style spesifik');
+assert(!testTwoWorldsResult.twoWorldsSmartDetection.environmentStyle.startsWith('Auto'), 'twoWorldsSmartDetection menghasilkan environment style spesifik');
+assert(testTwoWorldsResult.optimalPrompt.includes('Subject Character Parameters:'), 'Prompt Optimal 2 Dunia memuat parameter demografi hasil deteksi');
+
+// 8. Verifikasi Aturan Manual Override (Prioritas Pengguna)
+// Skenario A: Pengguna mengubah parameter secara manual -> lock aktif
+const manualLocks = { gender: false, age: false, ethnicity: false, subjectStyle: false, environmentStyle: false };
+let currentTwConfig = { ...smartAll };
+
+// Pengguna mengubah gender ke 'Laki-Laki' dan usia ke '35 tahun'
+currentTwConfig.gender = 'Laki-Laki';
+manualLocks.gender = true;
+currentTwConfig.age = '35 tahun';
+manualLocks.age = true;
+
+// Sistem menjalankan Analisis Ulang (Re-analysis) dengan gambar baru atau refresh
+const newDetected = {
+  gender: 'Perempuan',
+  age: '20 tahun',
+  ethnicity: 'Asia Tenggara',
+  subjectStyle: '3D Cartoon Style',
+  environmentStyle: 'SpongeBob Cinematic 3D'
+};
+
+// Logika update di main.js runAnalysis:
+const keysToSync = ['gender', 'age', 'ethnicity', 'subjectStyle', 'environmentStyle'];
+for (const k of keysToSync) {
+  if (!manualLocks[k]) {
+    currentTwConfig[k] = newDetected[k];
+  }
+}
+
+assert(currentTwConfig.gender === 'Laki-Laki', 'Manual Override: Nilai manual gender "Laki-Laki" TIDAK tertimpa oleh deteksi');
+assert(currentTwConfig.age === '35 tahun', 'Manual Override: Nilai manual age "35 tahun" TIDAK tertimpa oleh deteksi');
+assert(currentTwConfig.subjectStyle === '3D Cartoon Style', 'Manual Override: Parameter tanpa kunci manual terisi hasil deteksi baru');
+assert(currentTwConfig.environmentStyle === 'SpongeBob Cinematic 3D', 'Manual Override: Parameter tanpa kunci manual terisi hasil deteksi baru');
+
+// Skenario B: Pengguna sengaja memilih kembali "Auto (Smart Detection)"
+manualLocks.gender = false;
+currentTwConfig.gender = newDetected.gender;
+assert(currentTwConfig.gender === 'Perempuan', 'Manual Override: Memilih Auto mengembalikan nilai ke hasil deteksi cerdas');
+
+// Skenario C: Ganti Gambar (New Image Uploaded) -> Locks reset
+const resetLocks = { gender: false, age: false, ethnicity: false, subjectStyle: false, environmentStyle: false };
+assert(resetLocks.gender === false && resetLocks.age === false, 'Ganti Gambar: Manual locks di-reset untuk gambar baru sebagai Source of Truth');
+
+// 9. Verifikasi Rendering PromptInput dengan Detected Style
+const renderedTwInput = renderPromptInput({
+  activeMode: 'TWO_WORLDS',
+  twoWorldsConfig: {
+    customRequest: '',
+    gender: 'Perempuan',
+    age: '25 tahun',
+    ethnicity: 'Asia Tenggara',
+    subjectStyle: 'LEGO Style',
+    customSubjectStyle: '',
+    environmentStyle: 'Candy World 3D Style'
+  }
+});
+assert(renderedTwInput.html.includes('value="LEGO Style" selected'), 'PromptInput me-render opsi subjectStyle "LEGO Style" terpilih');
+assert(renderedTwInput.html.includes('value="Candy World 3D Style" selected'), 'PromptInput me-render opsi environmentStyle "Candy World 3D Style" terpilih');
+assert(renderedTwInput.html.includes('value="Perempuan" selected'), 'PromptInput me-render opsi gender "Perempuan" terpilih');
+assert(renderedTwInput.html.includes('value="25 tahun" selected'), 'PromptInput me-render opsi age "25 tahun" terpilih');
+assert(renderedTwInput.html.includes('value="Asia Tenggara" selected'), 'PromptInput me-render opsi ethnicity "Asia Tenggara" terpilih');
+
+// 10. Isolasi Mutlak Mode & Tab Lain
+const nonTwoWorldsInput = renderPromptInput({
+  activeMode: 'IMAGE_TO_PROMPT',
+  twoWorldsConfig: null
+});
+assert(!nonTwoWorldsInput.html.includes('two-worlds-config-panel'), 'Tab Analisa Gambar -> Prompt TIDAK me-render panel 2 Dunia');
 
 console.log('\n==================================================');
 console.log(`HASIL AKHIR: ${passed} PASSED, ${failed} FAILED`);

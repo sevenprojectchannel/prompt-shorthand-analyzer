@@ -15,6 +15,7 @@ import { GeminiService, GEMINI_STATUS } from './services/geminiService.js';
 import { cleanPromptForCopy } from './lib/promptFormatter.js';
 import { DEFAULT_COLOUR_GRADING_CONFIG } from './data/colourGradingData.js';
 import { toAiEnglishPrompt } from './lib/promptEnglishTranslator.js';
+import { detectTwoWorldsSmartParameters } from './lib/twoWorldsSmartDetector.js';
 
 import { renderHeader } from './components/Header.js';
 import { renderAnalyzerPage } from './components/AnalyzerPage.js';
@@ -61,7 +62,7 @@ class App {
       hasSearched: false
     };
 
-    // 2 Dunia Config State (V3.5)
+    // 2 Dunia Config State (V3.5 / V3.6)
     this.twoWorldsConfig = {
       customRequest: '',
       gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
@@ -71,6 +72,16 @@ class App {
       customSubjectStyle: '',
       environmentStyle: 'Auto (Smart Detection)'
     };
+
+    // Manual override locks & detected values khusus 2 Dunia (V3.6)
+    this.twoWorldsManualLocks = {
+      gender: false,
+      age: false,
+      ethnicity: false,
+      subjectStyle: false,
+      environmentStyle: false
+    };
+    this.twoWorldsDetectedValues = null;
 
     // Colour Grading Config State (V3.6)
     this.colourGradingConfig = { ...DEFAULT_COLOUR_GRADING_CONFIG };
@@ -168,6 +179,38 @@ class App {
           twoWorldsConfig: this.activeMode === 'TWO_WORLDS' ? this.twoWorldsConfig : null
         });
         result.mode = this.activeMode;
+        if (this.activeMode === 'TWO_WORLDS') {
+          const smartDetection = result.twoWorldsSmartDetection || (result.visionData?.smartDetection) || detectTwoWorldsSmartParameters(
+            result.visionData,
+            this.uploadedImage,
+            this.uploadedImage.visualTelemetry,
+            this.twoWorldsConfig
+          );
+
+          if (smartDetection) {
+            this.twoWorldsDetectedValues = { ...smartDetection };
+
+            // Update parameter yang TIDAK dikunci secara manual oleh pengguna
+            const updatedTwConfig = { ...this.twoWorldsConfig };
+            const keys = ['gender', 'age', 'ethnicity', 'subjectStyle', 'environmentStyle'];
+            for (const k of keys) {
+              if (!this.twoWorldsManualLocks[k] && smartDetection[k]) {
+                updatedTwConfig[k] = smartDetection[k];
+              }
+            }
+            this.twoWorldsConfig = updatedTwConfig;
+
+            // Re-sinkronisasi Prompt Optimal agar selaras dengan konfigurasi aktif
+            if (typeof this.geminiService.assembleOptimalImagePrompt === 'function') {
+              result.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
+                result.visionData,
+                result.installedShorthands || [],
+                this.twoWorldsConfig
+              );
+              result.generatedPrompt = result.optimalPrompt;
+            }
+          }
+        }
         this.analysisResult = result;
         if (result.source === 'GEMINI_AI') {
           this.showToast(this.activeMode === 'TWO_WORLDS' ? '✅ Analisa 2 Dunia Vision AI berhasil!' : '✅ Analisa Vision AI berhasil berdasarkan gambar aktual!', 'success');
@@ -277,6 +320,14 @@ class App {
     this.currentPrompt = '';
     this.uploadedImage = null;
     this.selectedAspectRatio = 'auto';
+    this.twoWorldsManualLocks = {
+      gender: false,
+      age: false,
+      ethnicity: false,
+      subjectStyle: false,
+      environmentStyle: false
+    };
+    this.twoWorldsDetectedValues = null;
     this.twoWorldsConfig = {
       customRequest: '',
       gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
@@ -295,6 +346,14 @@ class App {
     this.currentPrompt = '';
     this.uploadedImage = null;
     this.selectedAspectRatio = 'auto';
+    this.twoWorldsManualLocks = {
+      gender: false,
+      age: false,
+      ethnicity: false,
+      subjectStyle: false,
+      environmentStyle: false
+    };
+    this.twoWorldsDetectedValues = null;
     this.twoWorldsConfig = {
       customRequest: '',
       gender: 'Auto (Smart Detection) mengikuti gambar unggahan',
@@ -309,11 +368,43 @@ class App {
   }
 
   /**
-   * Menangani pembaruan konfigurasi parameter kustom 2 Dunia (V3.5)
+   * Menangani pembaruan konfigurasi parameter kustom 2 Dunia (V3.5 / V3.6)
    * Menyinkronkan PROMPT OPTIMAL secara real-time bila hasil analisis visual sudah ada
+   * Mendukung Manual Override: Parameter manual pengguna tetap aktif dan prioritas utama.
    */
-  handleTwoWorldsConfigChange(newConfig) {
-    this.twoWorldsConfig = { ...this.twoWorldsConfig, ...newConfig };
+  handleTwoWorldsConfigChange(newConfig, changedField = null) {
+    const configToApply = { ...newConfig };
+    const smartKeys = ['gender', 'age', 'ethnicity', 'subjectStyle', 'environmentStyle'];
+
+    if (changedField && smartKeys.includes(changedField)) {
+      const val = configToApply[changedField];
+      if (val && typeof val === 'string' && val.startsWith('Auto')) {
+        // Pengguna sengaja memilih kembali opsi Auto (Smart Detection)
+        this.twoWorldsManualLocks[changedField] = false;
+        if (this.twoWorldsDetectedValues && this.twoWorldsDetectedValues[changedField]) {
+          configToApply[changedField] = this.twoWorldsDetectedValues[changedField];
+        }
+      } else {
+        // Pengguna memilih nilai manual secara spesifik
+        this.twoWorldsManualLocks[changedField] = true;
+      }
+    } else {
+      for (const k of smartKeys) {
+        if (configToApply[k] !== undefined && configToApply[k] !== this.twoWorldsConfig[k]) {
+          const val = configToApply[k];
+          if (val && typeof val === 'string' && val.startsWith('Auto')) {
+            this.twoWorldsManualLocks[k] = false;
+            if (this.twoWorldsDetectedValues && this.twoWorldsDetectedValues[k]) {
+              configToApply[k] = this.twoWorldsDetectedValues[k];
+            }
+          } else {
+            this.twoWorldsManualLocks[k] = true;
+          }
+        }
+      }
+    }
+
+    this.twoWorldsConfig = { ...this.twoWorldsConfig, ...configToApply };
     if (this.activeMode === 'TWO_WORLDS' && this.analysisResult && this.analysisResult.visionData) {
       if (typeof this.geminiService.assembleOptimalImagePrompt === 'function') {
         this.analysisResult.optimalPrompt = this.geminiService.assembleOptimalImagePrompt(
@@ -823,7 +914,7 @@ class App {
         selectedAspectRatio: this.selectedAspectRatio,
         onAspectRatioChange: (ratio) => this.handleAspectRatioChange(ratio),
         twoWorldsConfig: this.twoWorldsConfig,
-        onTwoWorldsConfigChange: (newConfig) => this.handleTwoWorldsConfigChange(newConfig),
+        onTwoWorldsConfigChange: (newConfig, changedField) => this.handleTwoWorldsConfigChange(newConfig, changedField),
         colourGradingConfig: this.colourGradingConfig,
         onColourGradingConfigChange: (newConfig) => this.handleColourGradingConfigChange(newConfig),
         onResetGrading: () => this.handleResetGrading(),
@@ -839,6 +930,17 @@ class App {
         },
         onImageSelected: (img, batchList) => {
           this.uploadedImage = img;
+          if (this.activeMode === 'TWO_WORLDS') {
+            // Gambar baru adalah SOURCE OF TRUTH baru: Reset manual locks agar Smart Detection mengisi parameter otomatis
+            this.twoWorldsManualLocks = {
+              gender: false,
+              age: false,
+              ethnicity: false,
+              subjectStyle: false,
+              environmentStyle: false
+            };
+            this.twoWorldsDetectedValues = null;
+          }
           if (batchList && Array.isArray(batchList) && batchList.length > 0) {
             this.batchGradingImages = batchList;
             this.activeGradingBatchIndex = 0;
