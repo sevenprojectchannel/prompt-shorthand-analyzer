@@ -13,6 +13,7 @@ import { CatalogRepository } from './services/catalogRepository.js';
 import { StorageService } from './services/storageService.js';
 import { GeminiService, GEMINI_STATUS } from './services/geminiService.js';
 import { cleanPromptForCopy } from './lib/promptFormatter.js';
+import { DEFAULT_COLOUR_GRADING_CONFIG } from './data/colourGradingData.js';
 
 import { renderHeader } from './components/Header.js';
 import { renderAnalyzerPage } from './components/AnalyzerPage.js';
@@ -69,6 +70,11 @@ class App {
       customSubjectStyle: '',
       environmentStyle: 'Auto (Smart Detection)'
     };
+
+    // Colour Grading Config State (V3.6)
+    this.colourGradingConfig = { ...DEFAULT_COLOUR_GRADING_CONFIG };
+    this.batchGradingImages = [];
+    this.activeGradingBatchIndex = 0;
 
     // Initialize with empty analysis result
     this.analysisResult = this.geminiService.localEngine.getEmptyResult();
@@ -194,7 +200,9 @@ class App {
             mimeType: this.uploadedImage.type,
             notesPrompt: promptText,
             isColourGrading,
-            mode: this.activeMode
+            mode: this.activeMode,
+            colourGradingConfig: isColourGrading ? this.colourGradingConfig : null,
+            telemetry: isColourGrading ? (this.uploadedImage.colorTelemetry || this.uploadedImage.visualTelemetry || null) : null
           });
           result.mode = this.activeMode;
           this.analysisResult = result;
@@ -316,6 +324,38 @@ class App {
       }
     }
     this.render();
+  }
+
+  /**
+   * Mengubah Konfigurasi Colour Grading (V3.6)
+   */
+  handleColourGradingConfigChange(newConfig) {
+    this.colourGradingConfig = { ...this.colourGradingConfig, ...newConfig };
+    if (this.activeMode === 'COLOUR_GRADING' && this.analysisResult && this.analysisResult.isColourGrading) {
+      this.analysisResult.colourGradingConfig = this.colourGradingConfig;
+    }
+    this.render();
+  }
+
+  /**
+   * Reset Colour Grading (Requirement 10)
+   * Mengembalikan tampilan dan parameter grading ke foto original tanpa menghapus gambar
+   */
+  handleResetGrading() {
+    this.colourGradingConfig = { ...DEFAULT_COLOUR_GRADING_CONFIG };
+    this.render();
+    this.showToast('Pengaturan Colour Grading telah di-reset ke nilai default (Foto Asli).');
+  }
+
+  /**
+   * Memilih foto aktif dalam Batch Processing (Requirement 11)
+   */
+  handleSelectBatchImage(index) {
+    if (this.batchGradingImages && this.batchGradingImages[index]) {
+      this.activeGradingBatchIndex = index;
+      this.uploadedImage = this.batchGradingImages[index];
+      this.render();
+    }
   }
 
   /**
@@ -751,6 +791,12 @@ class App {
         onAspectRatioChange: (ratio) => this.handleAspectRatioChange(ratio),
         twoWorldsConfig: this.twoWorldsConfig,
         onTwoWorldsConfigChange: (newConfig) => this.handleTwoWorldsConfigChange(newConfig),
+        colourGradingConfig: this.colourGradingConfig,
+        onColourGradingConfigChange: (newConfig) => this.handleColourGradingConfigChange(newConfig),
+        onResetGrading: () => this.handleResetGrading(),
+        batchImages: this.batchGradingImages,
+        activeBatchIndex: this.activeGradingBatchIndex,
+        onSelectBatchImage: (idx) => this.handleSelectBatchImage(idx),
         onModeChange: (mode) => {
           if (this.activeMode !== mode) {
             this.activeMode = mode;
@@ -758,8 +804,18 @@ class App {
             this.render();
           }
         },
-        onImageSelected: (img) => {
+        onImageSelected: (img, batchList) => {
           this.uploadedImage = img;
+          if (batchList && Array.isArray(batchList) && batchList.length > 0) {
+            this.batchGradingImages = batchList;
+            this.activeGradingBatchIndex = 0;
+          } else if (img) {
+            this.batchGradingImages = [img];
+            this.activeGradingBatchIndex = 0;
+          } else {
+            this.batchGradingImages = [];
+            this.activeGradingBatchIndex = 0;
+          }
           this.analysisResult = this.geminiService.localEngine.getEmptyResult();
           this.render();
           if (this.activeMode === 'IMAGE_TO_PROMPT' || this.activeMode === 'TWO_WORLDS') {
@@ -768,6 +824,8 @@ class App {
         },
         onImageRemoved: () => {
           this.uploadedImage = null;
+          this.batchGradingImages = [];
+          this.activeGradingBatchIndex = 0;
           this.analysisResult = this.geminiService.localEngine.getEmptyResult();
           this.render();
         },

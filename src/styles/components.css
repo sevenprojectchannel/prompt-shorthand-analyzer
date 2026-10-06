@@ -3485,3 +3485,36 @@
   margin-top: 0.35rem;
 }
 
+/* ==========================================================================
+   COLOUR GRADING PANEL & INTERACTIVE PREVIEW (V3.6)
+   ========================================================================== */
+.colour-grading-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.cg-mode-btn:hover {
+  border-color: #f472b6 !important;
+  background: rgba(236, 72, 153, 0.12) !important;
+}
+
+.cg-slider {
+  cursor: pointer;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.batch-thumb-btn:hover {
+  border-color: #f472b6 !important;
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
+}
+
+.cg-preview-wrapper {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+

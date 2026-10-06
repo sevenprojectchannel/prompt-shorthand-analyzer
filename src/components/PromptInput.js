@@ -16,6 +16,9 @@ import {
   TWO_WORLDS_SUBJECT_STYLES,
   TWO_WORLDS_ENVIRONMENT_STYLES
 } from '../data/twoWorldsData.js';
+import { renderColourGradingPanel } from './ColourGradingPanel.js';
+import { DEFAULT_COLOUR_GRADING_CONFIG } from '../data/colourGradingData.js';
+import { analyzeImageColorTelemetry } from '../lib/colourGradingEngine.js';
 
 export function renderPromptInput({
   currentValue = '',
@@ -33,9 +36,26 @@ export function renderPromptInput({
   selectedAspectRatio = 'auto',
   onAspectRatioChange,
   twoWorldsConfig = null,
-  onTwoWorldsConfigChange
+  onTwoWorldsConfigChange,
+  colourGradingConfig = null,
+  onColourGradingConfigChange,
+  onResetGrading,
+  batchImages = [],
+  activeBatchIndex = 0,
+  onSelectBatchImage
 }) {
   const presets = renderPresetTests(onSelectPreset);
+  const colourGradingPanelComp = activeMode === 'COLOUR_GRADING'
+    ? renderColourGradingPanel({
+        config: colourGradingConfig || DEFAULT_COLOUR_GRADING_CONFIG,
+        uploadedImage,
+        onConfigChange: onColourGradingConfigChange,
+        onResetGrading,
+        batchImages,
+        activeBatchIndex,
+        onSelectBatchImage
+      })
+    : null;
   const detectedRatio = uploadedImage
     ? (uploadedImage.detectedAspectRatio || (uploadedImage.width && uploadedImage.height ? detectClosestAspectRatio(uploadedImage.width, uploadedImage.height) : '1:1'))
     : null;
@@ -105,7 +125,7 @@ export function renderPromptInput({
       <!-- IMAGE UPLOAD SECTION (MODE 2, MODE 2 DUNIA, MODE 3 & MODE COLOUR GRADING) -->
       ${(activeMode === 'IMAGE_TO_PROMPT' || activeMode === 'TWO_WORLDS' || activeMode === 'SHORTHAND_IMPROVE' || activeMode === 'COLOUR_GRADING') ? `
         <div class="image-upload-wrapper" id="image-upload-wrapper">
-          <input type="file" id="image-file-input" accept="image/*, .jfif, .jpg, .jpeg, .png, .webp" style="display: none;" />
+          <input type="file" id="image-file-input" ${activeMode === 'COLOUR_GRADING' ? 'multiple' : ''} accept="image/*, .jfif, .jpg, .jpeg, .png, .webp" style="display: none;" />
           ${uploadedImage ? `
             <div class="image-preview-card">
               <img src="${uploadedImage.previewUrl}" alt="Reference Preview" class="image-preview-thumb" id="img-reference-preview" />
@@ -335,10 +355,13 @@ export function renderPromptInput({
         <div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.25); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; font-size: 0.825rem; color: #f472b6;">
           <strong>🎨 Mode Analisa Colour Grading:</strong> 
           ${uploadedImage 
-            ? 'Gambar terpasang. Sistem akan mendiagnosis seluruh aspek warna (color balance, tint, warmth/coolness, shadows/highlights tone, saturation, gamma, cinematic look, dll.) dan merekomendasikan seluruh shorthand colour grading yang relevan tanpa batasan jumlah.'
-            : 'Unggah gambar di atas untuk diagnosis visual colour grading komprehensif, atau masukkan prompt/shorthand di bawah untuk evaluasi tone &amp; grading warna.'}
+            ? 'Gambar terpasang. Sistem akan mendiagnosis karakteristik warna (color balance, kurva kontras, shadow toning, highlight roll-off, saturasi, dll.) dan merekomendasikan shorthand colour grading profesional.'
+            : 'Unggah gambar di atas untuk diagnosis karakter warna, kurva kontras, dan tone komprehensif, atau masukkan catatan preferensi colour grading di bawah.'}
         </div>
       ` : ''}
+
+      <!-- MODE COLOUR GRADING SPECIFIC: ADVANCED PANEL & PREVIEW (V3.6) -->
+      ${activeMode === 'COLOUR_GRADING' ? (colourGradingPanelComp ? colourGradingPanelComp.html : '') : ''}
 
       <!-- Preset Test Cases (Only in Mode 1, or Mode 3 / Colour Grading without image) -->
       ${(activeMode === 'ANALISA_PROMPT' || ((activeMode === 'SHORTHAND_IMPROVE' || activeMode === 'COLOUR_GRADING') && !uploadedImage)) ? `
@@ -413,6 +436,9 @@ export function renderPromptInput({
   return {
     html,
     bindEvents(container) {
+      if (activeMode === 'COLOUR_GRADING' && colourGradingPanelComp) {
+        colourGradingPanelComp.bindEvents(container);
+      }
       if (activeMode === 'ANALISA_PROMPT' || ((activeMode === 'SHORTHAND_IMPROVE' || activeMode === 'COLOUR_GRADING') && !uploadedImage)) {
         presets.bindEvents(container);
       }
@@ -456,8 +482,12 @@ export function renderPromptInput({
           dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropzone.classList.remove('dragover');
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-              handleFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              if (activeMode === 'COLOUR_GRADING' && e.dataTransfer.files.length > 1) {
+                handleMultipleFiles(Array.from(e.dataTransfer.files));
+              } else {
+                handleFile(e.dataTransfer.files[0]);
+              }
             }
           });
         }
@@ -469,65 +499,64 @@ export function renderPromptInput({
         }
 
         fileInput.addEventListener('change', () => {
-          if (fileInput.files && fileInput.files[0]) {
-            handleFile(fileInput.files[0]);
+          if (fileInput.files && fileInput.files.length > 0) {
+            if (activeMode === 'COLOUR_GRADING' && fileInput.files.length > 1) {
+              handleMultipleFiles(Array.from(fileInput.files));
+            } else {
+              handleFile(fileInput.files[0]);
+            }
             fileInput.value = '';
           }
         });
 
-        function handleFile(file) {
-          if (!file) return;
-          const isImageMime = file.type && file.type.startsWith('image/');
-          const isImageExt = /\.(jpe?g|png|webp|jfif|bmp|gif|heic|heif)$/i.test(file.name || '');
-          if (!isImageMime && !isImageExt) {
-            alert('Silakan pilih file gambar yang valid (JPG, PNG, WEBP, JFIF).');
-            return;
-          }
+        function processSingleFile(file) {
+          return new Promise((resolve) => {
+            if (!file) return resolve(null);
+            const isImageMime = file.type && file.type.startsWith('image/');
+            const isImageExt = /\.(jpe?g|png|webp|jfif|bmp|gif|heic|heif)$/i.test(file.name || '');
+            if (!isImageMime && !isImageExt) return resolve(null);
 
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            const dataUrl = evt.target.result;
-            const img = new Image();
-            img.onload = () => {
-              const naturalW = img.naturalWidth || img.width || 800;
-              const naturalH = img.naturalHeight || img.height || 800;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              const dataUrl = evt.target.result;
+              const img = new Image();
+              img.onload = () => {
+                const naturalW = img.naturalWidth || img.width || 800;
+                const naturalH = img.naturalHeight || img.height || 800;
 
-              let cleanJpegDataUrl = dataUrl;
-              let visualTelemetry = null;
+                let cleanJpegDataUrl = dataUrl;
+                let visualTelemetry = null;
+                let colorTelemetry = null;
 
-              try {
-                // Skalakan ke resolusi optimal Vision AI (max 1280px) untuk menjaga detail tinggi
-                // sekaligus mencegah payload base64 raksasa (menghasilkan ~150-300KB)
-                const MAX_DIM = 1280;
-                let drawW = naturalW;
-                let drawH = naturalH;
-                if (drawW > MAX_DIM || drawH > MAX_DIM) {
-                  const scale = Math.min(MAX_DIM / drawW, MAX_DIM / drawH);
-                  drawW = Math.round(drawW * scale);
-                  drawH = Math.round(drawH * scale);
+                try {
+                  const MAX_DIM = 1280;
+                  let drawW = naturalW;
+                  let drawH = naturalH;
+                  if (drawW > MAX_DIM || drawH > MAX_DIM) {
+                    const scale = Math.min(MAX_DIM / drawW, MAX_DIM / drawH);
+                    drawW = Math.round(drawW * scale);
+                    drawH = Math.round(drawH * scale);
+                  }
+
+                  const canvas = document.createElement('canvas');
+                  canvas.width = drawW;
+                  canvas.height = drawH;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(img, 0, 0, drawW, drawH);
+
+                  visualTelemetry = analyzeCanvasPixels(canvas, { filename: file.name, targetAspectRatio: selectedAspectRatio });
+                  if (activeMode === 'COLOUR_GRADING') {
+                    colorTelemetry = analyzeImageColorTelemetry(canvas);
+                  }
+                  cleanJpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                } catch (canvasErr) {
+                  console.warn('Canvas processing fallback:', canvasErr);
+                  cleanJpegDataUrl = dataUrl;
+                  visualTelemetry = analyzeCanvasPixels(null, { filename: file.name, targetAspectRatio: selectedAspectRatio });
                 }
 
-                const canvas = document.createElement('canvas');
-                canvas.width = drawW;
-                canvas.height = drawH;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, drawW, drawH);
-
-                // Ekstraksi telemetri pixel visual nyata
-                visualTelemetry = analyzeCanvasPixels(canvas, { filename: file.name, targetAspectRatio: selectedAspectRatio });
-
-                // Normalisasi ke standard image/jpeg untuk menjamin kompatibilitas Gemini API
-                cleanJpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
-              } catch (canvasErr) {
-                console.warn('Canvas processing fallback:', canvasErr);
-                cleanJpegDataUrl = dataUrl;
-                visualTelemetry = analyzeCanvasPixels(null, { filename: file.name, targetAspectRatio: selectedAspectRatio });
-              }
-
-              const detectedAspect = detectClosestAspectRatio(naturalW, naturalH);
-
-              if (onImageSelected) {
-                onImageSelected({
+                const detectedAspect = detectClosestAspectRatio(naturalW, naturalH);
+                resolve({
                   file,
                   name: file.name,
                   size: file.size,
@@ -538,13 +567,12 @@ export function renderPromptInput({
                   height: naturalH,
                   aspectRatio: detectedAspect,
                   detectedAspectRatio: detectedAspect,
-                  visualTelemetry
+                  visualTelemetry,
+                  colorTelemetry
                 });
-              }
-            };
-            img.onerror = () => {
-              if (onImageSelected) {
-                onImageSelected({
+              };
+              img.onerror = () => {
+                resolve({
                   file,
                   name: file.name,
                   size: file.size,
@@ -553,13 +581,49 @@ export function renderPromptInput({
                   previewUrl: dataUrl,
                   width: 0,
                   height: 0,
-                  visualTelemetry: null
+                  visualTelemetry: null,
+                  colorTelemetry: null
                 });
-              }
+              };
+              img.src = dataUrl;
             };
-            img.src = dataUrl;
-          };
-          reader.readAsDataURL(file);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+          });
+        }
+
+        async function handleMultipleFiles(fileList) {
+          const validFiles = fileList.filter(f => {
+            const isMime = f.type && f.type.startsWith('image/');
+            const isExt = /\.(jpe?g|png|webp|jfif|bmp|gif|heic|heif)$/i.test(f.name || '');
+            return isMime || isExt;
+          });
+          if (validFiles.length === 0) {
+            alert('Silakan pilih file gambar yang valid (JPG, PNG, WEBP, JFIF).');
+            return;
+          }
+          const results = [];
+          for (const f of validFiles) {
+            const res = await processSingleFile(f);
+            if (res) results.push(res);
+          }
+          if (results.length > 0 && onImageSelected) {
+            onImageSelected(results[0], results);
+          }
+        }
+
+        async function handleFile(file) {
+          if (!file) return;
+          const isImageMime = file.type && file.type.startsWith('image/');
+          const isImageExt = /\.(jpe?g|png|webp|jfif|bmp|gif|heic|heif)$/i.test(file.name || '');
+          if (!isImageMime && !isImageExt) {
+            alert('Silakan pilih file gambar yang valid (JPG, PNG, WEBP, JFIF).');
+            return;
+          }
+          const res = await processSingleFile(file);
+          if (res && onImageSelected) {
+            onImageSelected(res, [res]);
+          }
         }
       }
 

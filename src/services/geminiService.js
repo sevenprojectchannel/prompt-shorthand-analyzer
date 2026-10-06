@@ -12,6 +12,8 @@ import { StorageService } from './storageService.js';
 import { SemanticEngine } from '../lib/semanticEngine.js';
 import { synthesizeDynamicImagePrompt, analyzeCanvasPixels } from '../lib/imageVisualAnalyzer.js';
 import { buildTwoWorldsPromptIntegration } from '../data/twoWorldsData.js';
+import { buildColourGradingDirectives, DEFAULT_COLOUR_GRADING_CONFIG } from '../data/colourGradingData.js';
+import { calculateAdaptiveAdjustments } from '../lib/colourGradingEngine.js';
 
 export const GEMINI_STATUS = {
   CONNECTED: 'CONNECTED',     // 🟢 Tersambung
@@ -1839,11 +1841,13 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
    * Upload Gambar -> Analisis Visual Menyeluruh -> Identifikasi Masalah/Kebutuhan ->
    * Cocokkan Katalog Shorthand -> Tampilkan Rekomendasi Tanpa Batas (UNLIMITED).
    */
-  async analyzeImageRepair({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', notesPrompt = '', preferredLang = 'id', isColourGrading = false, mode = 'SHORTHAND_IMPROVE' }) {
+  async analyzeImageRepair({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', notesPrompt = '', preferredLang = 'id', isColourGrading = false, mode = 'SHORTHAND_IMPROVE', colourGradingConfig = null, telemetry = null }) {
     const isGrading = Boolean(isColourGrading || mode === 'COLOUR_GRADING');
     const effectiveMode = isGrading ? 'COLOUR_GRADING' : 'SHORTHAND_IMPROVE';
     const key = StorageService.getApiKey().trim();
     const model = StorageService.getModel() || 'gemini-2.0-flash';
+    const activeGradingConfig = isGrading ? (colourGradingConfig || DEFAULT_COLOUR_GRADING_CONFIG) : null;
+    const adaptiveAdjustments = isGrading ? calculateAdaptiveAdjustments(telemetry || {}, activeGradingConfig) : null;
 
     let rawDiagnosis = null;
     let source = 'LOCAL_ENGINE';
@@ -1853,7 +1857,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
     // 1. Multimodal AI Analysis if online key & image available
     if (key && imageBase64) {
       try {
-        const aiDiag = await this.executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang, isGrading);
+        const aiDiag = await this.executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang, isGrading, activeGradingConfig);
         if (aiDiag && (aiDiag.optimizationAreas || aiDiag.visualConditionSummary)) {
           rawDiagnosis = aiDiag;
           source = 'GEMINI_AI';
@@ -1873,7 +1877,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
 
     // 2. Heuristic fallback if offline or no key
     if (!rawDiagnosis) {
-      rawDiagnosis = this.generateHeuristicImageRepair(imageFile, notesPrompt, preferredLang, isGrading);
+      rawDiagnosis = this.generateHeuristicImageRepair(imageFile, notesPrompt, preferredLang, isGrading, activeGradingConfig);
       source = key ? 'LOCAL_ENGINE_FALLBACK' : 'LOCAL_ENGINE';
       isOnlineActive = Boolean(key);
       engineNotice = isOnlineActive
@@ -1980,7 +1984,12 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
 
     // 6. Build Optimal Prompt
     let optimalPrompt = repairInstructions.trim();
-    if (installedShorthands.length > 0) {
+    if (isGrading) {
+      const gradingDirectives = buildColourGradingDirectives(activeGradingConfig, adaptiveAdjustments, telemetry);
+      optimalPrompt = installedShorthands.length > 0
+        ? `${gradingDirectives}\n\n${installedShorthands.join(' ')}`.trim()
+        : gradingDirectives.trim();
+    } else if (installedShorthands.length > 0) {
       optimalPrompt = `${optimalPrompt} ${installedShorthands.join(' ')}`.trim();
     }
 
@@ -1995,6 +2004,9 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
       optimizationAreas,
       goodAspects,
       repairInstructions,
+      colourGradingConfig: activeGradingConfig,
+      adaptiveAdjustments,
+      telemetry: isGrading ? telemetry : null,
       diagnosedShorthands: deduplicatedShorthands,
       installedShorthands,
       optimalPrompt,
@@ -2039,7 +2051,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
   /**
    * Helper: Multimodal Image Repair Analysis via Gemini API
    */
-  async executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang = 'id', isColourGrading = false) {
+  async executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang = 'id', isColourGrading = false, activeGradingConfig = null) {
     const cleanModel = (model || 'gemini-2.0-flash').trim().replace(/^models\//, '');
     const candidateModels = [
       cleanModel,
@@ -2078,6 +2090,18 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
     const systemInstruction = isColourGrading ? `Anda adalah Ahli Colour Grading & Visual Colorist profesional.
 Tugas Anda: Menganalisis karakter warna, tonal curve, temperatur, saturasi, kontras warna, dan color harmony dari gambar yang diunggah secara menyeluruh dan obyektif sebagai SOURCE OF TRUTH.
 Fokus utama: Mendiagnosis karakteristik warna gambar dan menentukan SELURUH ASPEK penyesuaian colour grading yang dibutuhkan untuk menciptakan palet warna sinematik, harmonis, atau tone estetis yang diinginkan.
+${activeGradingConfig ? `
+TARGET ARAH VISUAL & STYLE:
+- Mode: ${activeGradingConfig.mode || 'AUTO'}
+- Target Style: ${activeGradingConfig.selectedStyle || 'Natural Vibrant'}
+- Intensity: ${activeGradingConfig.intensity ?? 50}%
+- Highlight Protection: ${activeGradingConfig.protections?.highlightProtection !== false ? 'AKTIF' : 'NON-AKTIF'}
+- Shadow Protection: ${activeGradingConfig.protections?.shadowProtection !== false ? 'AKTIF' : 'NON-AKTIF'}
+- Skin Tone Protection: ${activeGradingConfig.protections?.skinToneProtection !== false ? 'AKTIF (Prioritas Utama: pertahankan keaslian warna kulit alami manusia)' : 'NON-AKTIF'}
+- Oversaturation Protection: ${activeGradingConfig.protections?.oversaturationProtection !== false ? 'AKTIF' : 'NON-AKTIF'}
+` : ''}
+PRINSIP NON-DESTRUKTIF MUTLAK:
+FOTO ASLI ADALAH SOURCE OF TRUTH. Proses ini murni AI IMAGE ENHANCEMENT / COLOR GRADING, BUKAN IMAGE REGENERATION. Wajib 100% mempertahankan subjek, wajah, identitas, proporsi tubuh, busana, rambut, pose, objek, latar belakang, dan struktur komposisi tanpa perubahan generatif.
 
 Parameter analisis meliputi:
 - Color temperature & white balance (warm, cool, neutral)
@@ -2279,7 +2303,7 @@ Format respons HANYA berupa JSON valid:
   /**
    * Helper: Offline Heuristic Diagnostic Generator for Image Repair & Colour Grading
    */
-  generateHeuristicImageRepair(imageFile, notesPrompt = '', preferredLang = 'id', isColourGrading = false) {
+  generateHeuristicImageRepair(imageFile, notesPrompt = '', preferredLang = 'id', isColourGrading = false, activeGradingConfig = null) {
     const textLower = (notesPrompt || '').toLowerCase();
     const hasNotes = Boolean(notesPrompt && notesPrompt.trim());
 
@@ -2384,7 +2408,8 @@ Format respons HANYA berupa JSON valid:
         goodAspects.push('Tidak ditemukan pergeseran warna ekstrim (chromatic aberration) yang merusak kualitas gambar.');
       }
 
-      const summary = `Hasil diagnosis colour grading menunjukkan gambar memiliki fondasi visual yang kuat. Ditemukan ${areas.length} area penyesuaian tonal curve, suhu warna, dan palet warna untuk mencapai grade estetis yang harmonis dan optimal.`;
+      const styleName = activeGradingConfig?.selectedStyle || 'Natural Vibrant';
+      const summary = `Hasil diagnosis colour grading menunjukkan gambar memiliki fondasi visual yang kuat. Ditemukan ${areas.length} area penyesuaian tonal curve, suhu warna, dan palet warna untuk mencapai grade estetis yang harmonis dan optimal (Arah visual: ${styleName}).`;
       const instructions = `Terapkan colour grading profesional: selaraskan kurva kontras, seimbangkan white balance dan suhu warna, kalibrasi saturasi serta tone bayangan dan highlight, dengan tetap mempertahankan keaslian tekstur subjek.`;
 
       return {

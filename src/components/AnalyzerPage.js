@@ -41,7 +41,13 @@ export function renderAnalyzerPage({
   selectedAspectRatio = 'auto',
   onAspectRatioChange,
   twoWorldsConfig = null,
-  onTwoWorldsConfigChange
+  onTwoWorldsConfigChange,
+  colourGradingConfig = null,
+  onColourGradingConfigChange,
+  onResetGrading,
+  batchImages = [],
+  activeBatchIndex = 0,
+  onSelectBatchImage
 }) {
   const {
     optimalPrompt = '',
@@ -49,6 +55,9 @@ export function renderAnalyzerPage({
     visualBreakdown = null,
     isImageRepair = false,
     visualConditionSummary = '',
+    calculatedAdjustments = null,
+    protectionLogs = [],
+    colorGradingRecipe = null,
     optimizationAreas = [],
     goodAspects = [],
     diagnosedShorthands = [],
@@ -100,7 +109,13 @@ export function renderAnalyzerPage({
     selectedAspectRatio,
     onAspectRatioChange,
     twoWorldsConfig,
-    onTwoWorldsConfigChange
+    onTwoWorldsConfigChange,
+    colourGradingConfig,
+    onColourGradingConfigChange,
+    onResetGrading,
+    batchImages,
+    activeBatchIndex,
+    onSelectBatchImage
   });
 
   const conflictBannerComp = renderConflictBanner(conflicts, onResolveConflict, activeMode);
@@ -302,6 +317,64 @@ export function renderAnalyzerPage({
               ${visualConditionSummary}
             </div>
           </div>
+
+          <!-- 1.5. HASIL PENYESUAIAN ADAPTIF PER-FOTO & PROTEKSI CERDAS (KHUSUS COLOUR GRADING) -->
+          ${(activeMode === 'COLOUR_GRADING' && calculatedAdjustments) ? `
+            <div style="margin-bottom: 1.15rem; background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(236, 72, 153, 0.25); border-radius: 8px; padding: 0.85rem 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.55rem; flex-wrap: wrap; gap: 0.4rem;">
+                <h3 style="font-size: 0.825rem; font-weight: 700; color: #f472b6; margin: 0; display: flex; align-items: center; gap: 0.35rem;">
+                  <span>🎚️</span> Parameter Penyesuaian Adaptif Terhitung (Target: ${calculatedAdjustments.targetStyle || 'Adaptive'} &bull; ${calculatedAdjustments.intensityPercent || 50}%):
+                </h3>
+                <span class="badge badge-outline" style="color: #4ade80; border-color: rgba(74, 222, 128, 0.4); font-size: 0.7rem;">
+                  Non-Destructive &bull; Source Preserved
+                </span>
+              </div>
+
+              <!-- Parameter Grid -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Exposure</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.exposure > 0 ? '+' : ''}${calculatedAdjustments.exposure} EV</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Contrast</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.contrast > 0 ? '+' : ''}${calculatedAdjustments.contrast}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Highlights</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.highlights > 0 ? '+' : ''}${calculatedAdjustments.highlights}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Shadows</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.shadows > 0 ? '+' : ''}${calculatedAdjustments.shadows}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Warmth (Temp)</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.warmth > 0 ? '+' : ''}${calculatedAdjustments.warmth}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Tint</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.tint > 0 ? '+' : ''}${calculatedAdjustments.tint}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Vibrance</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.vibrance > 0 ? '+' : ''}${calculatedAdjustments.vibrance}</strong>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.7); border-radius: 6px; padding: 0.4rem 0.6rem; border: 1px solid rgba(255,255,255,0.06);">
+                  <div style="color: #94a3b8; font-size: 0.68rem;">Saturation</div>
+                  <strong style="color: #f8fafc; font-size: 0.85rem;">${calculatedAdjustments.saturation > 0 ? '+' : ''}${calculatedAdjustments.saturation}</strong>
+                </div>
+              </div>
+
+              <!-- Proteksi Cerdas yang Diterapkan -->
+              ${(calculatedAdjustments.protectionLogs && calculatedAdjustments.protectionLogs.length > 0) ? `
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 0.5rem; font-size: 0.735rem; color: #a7f3d0; line-height: 1.45;">
+                  <strong style="color: #34d399; display: block; margin-bottom: 0.2rem;">🛡️ Proteksi Cerdas Diterapkan:</strong>
+                  ${calculatedAdjustments.protectionLogs.map(log => `<div>&bull; ${log}</div>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
 
           <!-- 2. Area yang Membutuhkan Optimasi / Penyesuaian -->
           <div style="margin-bottom: 1.15rem;">

@@ -27,6 +27,19 @@ import {
   TWO_WORLDS_ENVIRONMENT_STYLES,
   buildTwoWorldsPromptIntegration
 } from '../src/data/twoWorldsData.js';
+import {
+  COLOUR_GRADING_MODES,
+  COLOUR_GRADING_CATEGORIES,
+  ALL_COLOUR_GRADING_STYLES,
+  INTENSITY_LEVELS,
+  DEFAULT_COLOUR_GRADING_CONFIG,
+  buildColourGradingDirectives
+} from '../src/data/colourGradingData.js';
+import {
+  calculateAdaptiveAdjustments,
+  analyzeImageColorTelemetry
+} from '../src/lib/colourGradingEngine.js';
+import { renderColourGradingPanel } from '../src/components/ColourGradingPanel.js';
 
 const engine = new SemanticEngine(INITIAL_SHORTHAND_CATALOG);
 
@@ -2280,6 +2293,125 @@ console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICAT
   assert(textGradingResult.mode === 'COLOUR_GRADING', 'Text analysis menghasilkan mode COLOUR_GRADING');
   assert(textGradingResult.isColourGrading === true, 'Text analysis memiliki isColourGrading true');
   assert(textGradingResult.diagnostics.improvementAdvice.includes('colour grading'), 'Diagnostics advice spesifik colour grading');
+
+  // 8. Verifikasi Data Model & 3 Mode Utama (AUTO, SELECT STYLE, CUSTOM STYLE)
+  console.log('\n--- VERIFIKASI V3.6: 3 MODE, 37 STYLES, INTENSITY & PROTEKSI CERDAS ---');
+  assert(COLOUR_GRADING_MODES.AUTO === 'AUTO', 'Tersedia mode AUTO');
+  assert(COLOUR_GRADING_MODES.SELECT_STYLE === 'SELECT_STYLE', 'Tersedia mode SELECT STYLE');
+  assert(COLOUR_GRADING_MODES.CUSTOM_STYLE === 'CUSTOM_STYLE', 'Tersedia mode CUSTOM STYLE');
+
+  // 9. Verifikasi 7 Kategori & 37 Styles Lengkap
+  assert(COLOUR_GRADING_CATEGORIES.length === 7, 'Tersedia 7 Kategori Style Colour Grading');
+  const catNames = COLOUR_GRADING_CATEGORIES.map(c => c.category);
+  assert(catNames.includes('NATURAL / REALISTIC'), 'Kategori NATURAL / REALISTIC tersedia');
+  assert(catNames.includes('WARM / BRIGHT'), 'Kategori WARM / BRIGHT tersedia');
+  assert(catNames.includes('CINEMATIC'), 'Kategori CINEMATIC tersedia');
+  assert(catNames.includes('VIBRANT / COLORFUL'), 'Kategori VIBRANT / COLORFUL tersedia');
+  assert(catNames.includes('CLEAN / MODERN'), 'Kategori CLEAN / MODERN tersedia');
+  assert(catNames.includes('FILM / ARTISTIC'), 'Kategori FILM / ARTISTIC tersedia');
+  assert(catNames.includes('DRAMATIC'), 'Kategori DRAMATIC tersedia');
+
+  assert(ALL_COLOUR_GRADING_STYLES.length >= 37, `Tersedia 37+ style (${ALL_COLOUR_GRADING_STYLES.length} terdefinisi)`);
+  const styleNames = ALL_COLOUR_GRADING_STYLES.map(s => s.name);
+  assert(styleNames.includes('Natural Vibrant'), 'Style Natural Vibrant terdaftar');
+  assert(styleNames.includes('Golden Hour'), 'Style Golden Hour terdaftar');
+  assert(styleNames.includes('Moody Cinematic'), 'Style Moody Cinematic terdaftar');
+  assert(styleNames.includes('Teal & Orange Cinematic'), 'Style Teal & Orange Cinematic terdaftar');
+  assert(styleNames.includes('Clean & Fresh'), 'Style Clean & Fresh terdaftar');
+  assert(styleNames.includes('Vintage Film'), 'Style Vintage Film terdaftar');
+  assert(styleNames.includes('Dark & Moody'), 'Style Dark & Moody terdaftar');
+  assert(styleNames.includes('Custom Style'), 'Style Custom Style terdaftar');
+
+  // 10. Verifikasi Intensity Levels (0%, 25%, 50%, 75%, 100%)
+  assert(INTENSITY_LEVELS.length === 5, 'Terdapat 5 level intensitas colour grading');
+  assert(INTENSITY_LEVELS.some(i => i.value === 0 && i.label.includes('Original')), 'Terdapat level 0% (Original)');
+  assert(INTENSITY_LEVELS.some(i => i.value === 25 && i.label.includes('Very Subtle')), 'Terdapat level 25% (Very Subtle)');
+  assert(INTENSITY_LEVELS.some(i => i.value === 50 && i.label.includes('Balanced')), 'Terdapat level 50% (Balanced - Default)');
+  assert(INTENSITY_LEVELS.some(i => i.value === 75 && i.label.includes('Strong')), 'Terdapat level 75% (Strong)');
+  assert(INTENSITY_LEVELS.some(i => i.value === 100 && i.label.includes('Full Style')), 'Terdapat level 100% (Full Style)');
+  assert(DEFAULT_COLOUR_GRADING_CONFIG.intensity === 50, 'Default intensity adalah 50%');
+
+  // 11. Verifikasi Non-Destructive Directives (Source Image Protection)
+  const nonDestructiveDirectives = buildColourGradingDirectives(DEFAULT_COLOUR_GRADING_CONFIG);
+  assert(nonDestructiveDirectives.includes('SOURCE OF TRUTH'), 'Prompt memuat deklarasi FOTO ASLI SEBAGAI SOURCE OF TRUTH');
+  assert(nonDestructiveDirectives.includes('NON-DESTRUCTIVE') || nonDestructiveDirectives.includes('non-destruktif'), 'Prompt memuat klausul NON-DESTRUCTIVE enhancement');
+  assert(nonDestructiveDirectives.includes('wajah') && nonDestructiveDirectives.includes('identitas'), 'Prompt melarang perubahan wajah & identitas');
+  assert(nonDestructiveDirectives.includes('regenerasi citra') || nonDestructiveDirectives.includes('generative fill'), 'Prompt melarang regenerasi citra atau generative fill');
+
+  // 12. Verifikasi Style Adaptive Intelligence
+  // Kasus A: Foto yang sudah warm vs foto cool dengan target Golden Hour
+  const warmTelemetry = { warmthScore: 35, brightness: 130, saturation: 50, contrast: 50 };
+  const coolTelemetry = { warmthScore: -30, brightness: 130, saturation: 50, contrast: 50 };
+  const goldenHourCfg = { ...DEFAULT_COLOUR_GRADING_CONFIG, mode: 'SELECT_STYLE', selectedStyle: 'Golden Hour' };
+
+  const warmAdj = calculateAdaptiveAdjustments(warmTelemetry, goldenHourCfg);
+  const coolAdj = calculateAdaptiveAdjustments(coolTelemetry, goldenHourCfg);
+  assert(warmAdj.temperature < coolAdj.temperature, 'Style Adaptive Intelligence: Foto yang sudah hangat mendapatkan warming lebih sedikit dibanding foto dingin');
+
+  // Kasus B: Foto yang sudah sangat saturated vs foto pucat dengan target Vivid Color
+  const oversatTelemetry = { warmthScore: 0, brightness: 130, saturation: 85, contrast: 50 };
+  const paleTelemetry = { warmthScore: 0, brightness: 130, saturation: 25, contrast: 50 };
+  const vividCfg = { ...DEFAULT_COLOUR_GRADING_CONFIG, mode: 'SELECT_STYLE', selectedStyle: 'Vivid Color' };
+
+  const oversatAdj = calculateAdaptiveAdjustments(oversatTelemetry, vividCfg);
+  const paleAdj = calculateAdaptiveAdjustments(paleTelemetry, vividCfg);
+  assert(oversatAdj.saturation < paleAdj.saturation, 'Style Adaptive Intelligence: Foto yang sudah saturated mendapatkan reduksi saturasi adaptif untuk mencegah oversaturation');
+
+  // Kasus C: Foto sangat gelap dengan target Moody Cinematic (Shadow Protection)
+  const darkTelemetry = { warmthScore: 0, brightness: 35, saturation: 45, contrast: 55, shadowCrushing: 12 };
+  const darkAdj = calculateAdaptiveAdjustments(darkTelemetry, { ...DEFAULT_COLOUR_GRADING_CONFIG, selectedStyle: 'Moody Cinematic' });
+  assert(darkAdj.shadows >= 0, 'Shadow Protection: Foto gelap tidak dibuat semakin pekat/crushed');
+
+  // Kasus D: Intensitas 0% menghasilkan adjustment 0 (Foto Asli)
+  const zeroIntensityAdj = calculateAdaptiveAdjustments(warmTelemetry, { ...DEFAULT_COLOUR_GRADING_CONFIG, intensity: 0 });
+  assert(zeroIntensityAdj.exposure === 0 && zeroIntensityAdj.contrast === 0 && zeroIntensityAdj.saturation === 0, 'Intensitas 0% mempertahankan foto asli tanpa distorsi');
+
+  // 13. Verifikasi Mode AUTO: Menganalisis kondisi foto secara individual
+  const autoCfg = { ...DEFAULT_COLOUR_GRADING_CONFIG, mode: 'AUTO' };
+  const autoAdjPhoto1 = calculateAdaptiveAdjustments({ brightness: 80, warmthScore: -20, saturation: 40 }, autoCfg);
+  const autoAdjPhoto2 = calculateAdaptiveAdjustments({ brightness: 190, warmthScore: 25, saturation: 70 }, autoCfg);
+  assert(autoAdjPhoto1.exposure > autoAdjPhoto2.exposure, 'Mode AUTO: Foto gelap dinaikkan eksposurnya sedangkan foto terang diturunkan/dikontrol');
+
+  // 14. Verifikasi Batch Processing: Adaptive Individual Adjustments towards same visual style
+  const batchImgA = { brightness: 90, warmthScore: -15, saturation: 35 };
+  const batchImgB = { brightness: 160, warmthScore: 20, saturation: 65 };
+  const batchStyleCfg = { ...DEFAULT_COLOUR_GRADING_CONFIG, mode: 'SELECT_STYLE', selectedStyle: 'Natural Vibrant' };
+  const adjBatchA = calculateAdaptiveAdjustments(batchImgA, batchStyleCfg);
+  const adjBatchB = calculateAdaptiveAdjustments(batchImgB, batchStyleCfg);
+  assert(adjBatchA.exposure !== adjBatchB.exposure, 'Batch Processing: Foto A dan B menerima nilai exposure berbeda secara adaptif');
+  assert(adjBatchA.targetStyle === adjBatchB.targetStyle, 'Batch Processing: Foto A dan B diarahkan ke visual target yang sama');
+
+  // 15. Verifikasi Komponen ColourGradingPanel UI
+  const panelRender = renderColourGradingPanel({
+    config: { ...DEFAULT_COLOUR_GRADING_CONFIG, mode: 'SELECT_STYLE' },
+    uploadedImage: mockImage,
+    batchImages: [mockImage, { ...mockImage, name: 'second-photo.jpg' }],
+    activeBatchIndex: 0
+  });
+  assert(panelRender.html.includes('id="colour-grading-panel"'), 'ColourGradingPanel me-render wrapper panel');
+  assert(panelRender.html.includes('[ ORIGINAL ]'), 'Menyediakan tombol preview [ ORIGINAL ]');
+  assert(panelRender.html.includes('[ BEFORE / AFTER ]'), 'Menyediakan tombol preview [ BEFORE / AFTER ]');
+  assert(panelRender.html.includes('[ AFTER ]'), 'Menyediakan tombol preview [ AFTER ]');
+  assert(panelRender.html.includes('RESET COLOR GRADING'), 'Menyediakan tombol RESET COLOR GRADING');
+  assert(panelRender.html.includes('data-cg-mode="AUTO"'), 'Menyediakan tombol mode AUTO');
+  assert(panelRender.html.includes('data-cg-mode="SELECT_STYLE"'), 'Menyediakan tombol mode SELECT STYLE');
+  assert(panelRender.html.includes('data-cg-mode="CUSTOM_STYLE"'), 'Menyediakan tombol mode CUSTOM STYLE');
+  assert(panelRender.html.includes('id="cg-style-select"'), 'Menyediakan dropdown pilihan Style');
+  assert(panelRender.html.includes('id="cg-intensity-range"'), 'Menyediakan slider Intensity');
+  assert(panelRender.html.includes('id="cg-prot-skin"'), 'Menyediakan proteksi Skin Tone Protection');
+  assert(panelRender.html.includes('id="cg-prot-hl"'), 'Menyediakan proteksi Highlight Protection');
+  assert(panelRender.html.includes('id="cg-prot-sh"'), 'Menyediakan proteksi Shadow Protection');
+  assert(panelRender.html.includes('Batch Processing (2 Foto'), 'Menyediakan indikator Batch Processing saat ada multi-foto');
+
+  // 16. Verifikasi Scope Isolation: Tab lain TIDAK me-render ColourGradingPanel
+  const inputTab1 = renderPromptInput({ activeMode: 'ANALISA_PROMPT' });
+  const inputTab2 = renderPromptInput({ activeMode: 'IMAGE_TO_PROMPT' });
+  const inputTab3 = renderPromptInput({ activeMode: 'TWO_WORLDS' });
+  const inputTab4 = renderPromptInput({ activeMode: 'SHORTHAND_IMPROVE' });
+  assert(!inputTab1.html.includes('id="colour-grading-panel"'), 'Tab Analisa Prompt TIDAK me-render ColourGradingPanel');
+  assert(!inputTab2.html.includes('id="colour-grading-panel"'), 'Tab Analisa Gambar → Prompt TIDAK me-render ColourGradingPanel');
+  assert(!inputTab3.html.includes('id="colour-grading-panel"'), 'Tab 2 Dunia TIDAK me-render ColourGradingPanel');
+  assert(!inputTab4.html.includes('id="colour-grading-panel"'), 'Tab Perbaikan Gambar TIDAK me-render ColourGradingPanel');
 }
 
 console.log('\n==================================================');
