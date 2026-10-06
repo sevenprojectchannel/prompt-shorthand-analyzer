@@ -179,8 +179,9 @@ class App {
       return;
     }
 
-    if (this.activeMode === 'SHORTHAND_IMPROVE') {
-      // Skenario A: Unggah Gambar untuk Diagnosis Visual & Rekomendasi Shorthand Perbaikan
+    if (this.activeMode === 'SHORTHAND_IMPROVE' || this.activeMode === 'COLOUR_GRADING') {
+      const isColourGrading = this.activeMode === 'COLOUR_GRADING';
+      // Skenario A: Unggah Gambar untuk Diagnosis Visual & Rekomendasi Shorthand Perbaikan / Colour Grading
       if (this.uploadedImage) {
         this.isAnalyzing = true;
         this.currentPrompt = promptText || '';
@@ -191,19 +192,22 @@ class App {
             imageFile: this.uploadedImage.file,
             imageBase64: this.uploadedImage.base64,
             mimeType: this.uploadedImage.type,
-            notesPrompt: promptText
+            notesPrompt: promptText,
+            isColourGrading,
+            mode: this.activeMode
           });
+          result.mode = this.activeMode;
           this.analysisResult = result;
           if (result.source === 'GEMINI_AI') {
-            this.showToast('✅ Diagnosis visual Vision AI & rekomendasi perbaikan selesai!', 'success');
+            this.showToast(isColourGrading ? '✅ Diagnosis visual Vision AI & rekomendasi colour grading selesai!' : '✅ Diagnosis visual Vision AI & rekomendasi perbaikan selesai!', 'success');
           } else if (result.source === 'LOCAL_ENGINE_FALLBACK') {
             const reason = this.geminiService.lastError ? ` (${this.geminiService.lastError})` : '';
             this.showToast(`⚠️ Vision AI terkendala${reason}, menggunakan diagnosis visual lokal.`, 'warning');
           } else {
-            this.showToast('Diagnosis visual & rekomendasi perbaikan gambar selesai!');
+            this.showToast(isColourGrading ? 'Diagnosis visual & rekomendasi colour grading selesai!' : 'Diagnosis visual & rekomendasi perbaikan gambar selesai!');
           }
         } catch (err) {
-          this.showToast(`Gagal menganalisis perbaikan gambar: ${err.message}`, 'error');
+          this.showToast(`Gagal menganalisis ${isColourGrading ? 'colour grading' : 'perbaikan gambar'}: ${err.message}`, 'error');
         } finally {
           this.isAnalyzing = false;
           this.render();
@@ -213,7 +217,7 @@ class App {
 
       // Skenario B: Analisa Teks Shorthand / Prompt
       if (!promptText || !promptText.trim()) {
-        this.showToast('Silakan unggah gambar atau masukkan prompt / shorthand yang ingin diperbaiki.', 'error');
+        this.showToast(isColourGrading ? 'Silakan unggah gambar atau masukkan preferensi colour grading yang diinginkan.' : 'Silakan unggah gambar atau masukkan prompt / shorthand yang ingin diperbaiki.', 'error');
         return;
       }
       this.currentPrompt = promptText;
@@ -221,9 +225,10 @@ class App {
       this.render();
 
       try {
-        const result = await this.geminiService.analyzeShorthandImprove(promptText, installedOverrides);
+        const result = await this.geminiService.analyzeShorthandImprove(promptText, installedOverrides, { isColourGrading, mode: this.activeMode });
+        result.mode = this.activeMode;
         this.analysisResult = result;
-        this.showToast('Analisa shorthand perbaikan selesai!');
+        this.showToast(isColourGrading ? 'Analisa shorthand colour grading selesai!' : 'Analisa shorthand perbaikan selesai!');
       } catch (err) {
         this.showToast(`Gagal menganalisis: ${err.message}`, 'error');
       } finally {

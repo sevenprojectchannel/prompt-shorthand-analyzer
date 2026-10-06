@@ -1806,35 +1806,42 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
   /**
    * Mode 3: Analisa Shorthand Perbaikan Gambar (Text / Shorthand Input)
    * Mendeteksi shorthand yang kurang tepat, konflik antar-shorthand, shorthand redundan,
-   * dan memberikan versi shorthand/prompt yang lebih optimal untuk perbaikan gambar.
+   * dan memberikan versi shorthand/prompt yang lebih optimal untuk perbaikan gambar atau colour grading.
    */
-  async analyzeShorthandImprove(promptText, installedOverrides = null) {
+  async analyzeShorthandImprove(promptText, installedOverrides = null, options = {}) {
+    const isColourGrading = Boolean(options.isColourGrading || options.mode === 'COLOUR_GRADING');
+    const mode = isColourGrading ? 'COLOUR_GRADING' : (options.mode || 'SHORTHAND_IMPROVE');
     const baseResult = await this.analyzePrompt(promptText, installedOverrides);
 
-    // Diagnostic additions for shorthand repair
+    // Diagnostic additions for shorthand repair / colour grading
     const diagnostics = {
       conflictCount: baseResult.conflicts?.length || 0,
       redundancyCount: (baseResult.recommendations?.length || 0) - (baseResult.primaryShorthands?.length || 0),
       isOptimized: (baseResult.conflicts?.length || 0) === 0,
       improvementAdvice: baseResult.conflicts?.length > 0
         ? 'Ditemukan beberapa konflik direktif shorthand. Sistem telah merekomendasikan resolusi terpadu pada banner konflik.'
-        : 'Shorthand telah dianalisis dan dioptimalkan secara semantik tanpa konflik.'
+        : (isColourGrading
+            ? 'Shorthand colour grading telah dianalisis dan diselaraskan secara semantik tanpa konflik.'
+            : 'Shorthand telah dianalisis dan dioptimalkan secara semantik tanpa konflik.')
     };
 
     return {
       ...baseResult,
-      mode: 'SHORTHAND_IMPROVE',
+      mode,
+      isColourGrading,
       isImageRepair: false,
       diagnostics
     };
   }
 
   /**
-   * Mode 3 Baru: Analisa Perbaikan Gambar Berbasis Unggahan Visual
+   * Mode 3 & Mode Colour Grading: Analisa Perbaikan / Colour Grading Berbasis Unggahan Visual
    * Upload Gambar -> Analisis Visual Menyeluruh -> Identifikasi Masalah/Kebutuhan ->
    * Cocokkan Katalog Shorthand -> Tampilkan Rekomendasi Tanpa Batas (UNLIMITED).
    */
-  async analyzeImageRepair({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', notesPrompt = '', preferredLang = 'id' }) {
+  async analyzeImageRepair({ imageFile = null, imageBase64 = null, mimeType = 'image/jpeg', notesPrompt = '', preferredLang = 'id', isColourGrading = false, mode = 'SHORTHAND_IMPROVE' }) {
+    const isGrading = Boolean(isColourGrading || mode === 'COLOUR_GRADING');
+    const effectiveMode = isGrading ? 'COLOUR_GRADING' : 'SHORTHAND_IMPROVE';
     const key = StorageService.getApiKey().trim();
     const model = StorageService.getModel() || 'gemini-2.0-flash';
 
@@ -1846,7 +1853,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
     // 1. Multimodal AI Analysis if online key & image available
     if (key && imageBase64) {
       try {
-        const aiDiag = await this.executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang);
+        const aiDiag = await this.executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang, isGrading);
         if (aiDiag && (aiDiag.optimizationAreas || aiDiag.visualConditionSummary)) {
           rawDiagnosis = aiDiag;
           source = 'GEMINI_AI';
@@ -1854,7 +1861,9 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
           this.status = GEMINI_STATUS.CONNECTED;
           this.lastError = null;
           const activeModel = StorageService.getModel() || model;
-          engineNotice = `🌐 Analisa Perbaikan AI AKTIF (${activeModel}) — Diagnosis visual komprehensif dari gambar asli.`;
+          engineNotice = isGrading
+            ? `🌐 Analisa Colour Grading AI AKTIF (${activeModel}) — Diagnosis tone & warna komprehensif dari gambar asli.`
+            : `🌐 Analisa Perbaikan AI AKTIF (${activeModel}) — Diagnosis visual komprehensif dari gambar asli.`;
         }
       } catch (err) {
         console.warn('Gemini multimodal image repair analysis failed, falling back to heuristic diagnosis:', err);
@@ -1864,20 +1873,24 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
 
     // 2. Heuristic fallback if offline or no key
     if (!rawDiagnosis) {
-      rawDiagnosis = this.generateHeuristicImageRepair(imageFile, notesPrompt, preferredLang);
+      rawDiagnosis = this.generateHeuristicImageRepair(imageFile, notesPrompt, preferredLang, isGrading);
       source = key ? 'LOCAL_ENGINE_FALLBACK' : 'LOCAL_ENGINE';
       isOnlineActive = Boolean(key);
       engineNotice = isOnlineActive
-        ? `🌐 Mode Analisa Perbaikan Gambar (Fallback Heuristik Visual: ${this.lastError || 'offline'}).`
-        : `🖥️ Mode Analisa Perbaikan Gambar (Heuristik Diagnostik Lokal — Sambungkan Gemini API Key di Pengaturan untuk diagnosis visual AI langsung).`;
+        ? (isGrading
+            ? `🌐 Mode Analisa Colour Grading (Fallback Heuristik Visual: ${this.lastError || 'offline'}).`
+            : `🌐 Mode Analisa Perbaikan Gambar (Fallback Heuristik Visual: ${this.lastError || 'offline'}).`)
+        : (isGrading
+            ? `🖥️ Mode Analisa Colour Grading (Heuristik Diagnostik Lokal — Sambungkan Gemini API Key di Pengaturan untuk diagnosis warna AI langsung).`
+            : `🖥️ Mode Analisa Perbaikan Gambar (Heuristik Diagnostik Lokal — Sambungkan Gemini API Key di Pengaturan untuk diagnosis visual AI langsung).`);
     }
 
     // 3. Process Diagnosis: Match with Catalog, Deduplicate by Function Group, Unlimited items
     const {
-      visualConditionSummary = 'Gambar telah dianalisis secara visual.',
+      visualConditionSummary = isGrading ? 'Karakteristik warna gambar telah dianalisis secara visual.' : 'Gambar telah dianalisis secara visual.',
       optimizationAreas = [],
       goodAspects = [],
-      repairInstructions = 'Optimalkan kualitas dan karakteristik visual foto.'
+      repairInstructions = isGrading ? 'Terapkan colour grading harmonis dan profesional pada foto.' : 'Optimalkan kualitas dan karakteristik visual foto.'
     } = rawDiagnosis;
 
     // Issue Priority Order Definition
@@ -1927,12 +1940,12 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
         candidateMatches.push({
           code: finalCode,
           name: matchedItem?.name || finalCode.replace('/', '').toUpperCase(),
-          category: matchedItem?.category || 'IMAGE_QUALITY',
+          category: matchedItem?.category || (isGrading ? 'COLOR_GRADING' : 'IMAGE_QUALITY'),
           functionGroup: matchedItem?.functionGroup || `GROUP_${finalCode.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`,
-          description: matchedItem?.description || area.suggestedAction || 'Optimasi visual gambar',
+          description: matchedItem?.description || area.suggestedAction || (isGrading ? 'Penyesuaian colour grading' : 'Optimasi visual gambar'),
           issuePriority: area.priority || 'OPTIMIZATION',
           priorityWeight: ISSUE_PRIORITY_ORDER[area.priority] || 3,
-          aspect: area.aspect || 'Aspek Visual',
+          aspect: area.aspect || (isGrading ? 'Aspek Tone & Warna' : 'Aspek Visual'),
           problem: area.problem || '',
           reason: area.reason || `Diperlukan untuk ${area.suggestedAction || 'mengoptimalkan aspek ini'}.`,
           priority: 'WAJIB',
@@ -1972,7 +1985,8 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
     }
 
     return {
-      mode: 'SHORTHAND_IMPROVE',
+      mode: effectiveMode,
+      isColourGrading: isGrading,
       isImageRepair: true,
       source,
       isOnlineActive,
@@ -1990,7 +2004,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
       conflicts: [],
       exclusions: [],
       editAreas: optimizationAreas.map(a => ({
-        entity: a.aspect || 'AREA_OPTIMASI',
+        entity: a.aspect || (isGrading ? 'AREA_COLOUR_GRADING' : 'AREA_OPTIMASI'),
         description: a.problem || a.suggestedAction || ''
       })),
       lockedAreas: goodAspects.map(g => ({
@@ -1999,20 +2013,22 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
       })),
       unchangedAreas: goodAspects,
       intent: {
-        primaryAction: 'DIAGNOSIS_PERBAIKAN_GAMBAR',
-        primaryTarget: 'Kondisi Visual Foto',
+        primaryAction: isGrading ? 'DIAGNOSIS_COLOUR_GRADING' : 'DIAGNOSIS_PERBAIKAN_GAMBAR',
+        primaryTarget: isGrading ? 'Tone & Palet Warna' : 'Kondisi Visual Foto',
         summary: visualConditionSummary,
         priority: 'HIGH',
-        category: 'IMAGE_QUALITY'
+        category: isGrading ? 'COLOR_GRADING' : 'IMAGE_QUALITY'
       },
       diagnostics: {
         issueCount: optimizationAreas.length,
         goodCount: goodAspects.length,
         isOptimized: false,
-        improvementAdvice: `Ditemukan ${optimizationAreas.length} area visual yang membutuhkan perbaikan. Menampilkan ${deduplicatedShorthands.length} shorthand rekomendasi tanpa batasan.`
+        improvementAdvice: isGrading
+          ? `Ditemukan ${optimizationAreas.length} area warna & tone yang disesuaikan. Menampilkan ${deduplicatedShorthands.length} shorthand rekomendasi tanpa batasan.`
+          : `Ditemukan ${optimizationAreas.length} area visual yang membutuhkan perbaikan. Menampilkan ${deduplicatedShorthands.length} shorthand rekomendasi tanpa batasan.`
       },
       imageInfo: {
-        name: imageFile?.name || 'repair-source.jpg',
+        name: imageFile?.name || (isGrading ? 'colour-grading-source.jpg' : 'repair-source.jpg'),
         size: imageFile?.size || 0,
         type: mimeType
       },
@@ -2023,7 +2039,7 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
   /**
    * Helper: Multimodal Image Repair Analysis via Gemini API
    */
-  async executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang = 'id') {
+  async executeMultimodalImageRepairAnalysis(imageBase64, mimeType, notesPrompt, key, model, preferredLang = 'id', isColourGrading = false) {
     const cleanModel = (model || 'gemini-2.0-flash').trim().replace(/^models\//, '');
     const candidateModels = [
       cleanModel,
@@ -2059,7 +2075,55 @@ Kembalikan respons HANYA dalam format JSON valid dengan 13 atribut visual lengka
       normalizedMime = 'image/jpeg';
     }
 
-    const systemInstruction = `Anda adalah Ahli Diagnosa Visual & Optimasi Fotografi Digital profesional.
+    const systemInstruction = isColourGrading ? `Anda adalah Ahli Colour Grading & Visual Colorist profesional.
+Tugas Anda: Menganalisis karakter warna, tonal curve, temperatur, saturasi, kontras warna, dan color harmony dari gambar yang diunggah secara menyeluruh dan obyektif sebagai SOURCE OF TRUTH.
+Fokus utama: Mendiagnosis karakteristik warna gambar dan menentukan SELURUH ASPEK penyesuaian colour grading yang dibutuhkan untuk menciptakan palet warna sinematik, harmonis, atau tone estetis yang diinginkan.
+
+Parameter analisis meliputi:
+- Color temperature & white balance (warm, cool, neutral)
+- Color cast / tint (pergeseran warna hijau/magenta/kuning/biru)
+- Tonal curve / contrast / gamma (bayangan pekat, highlight lembut)
+- Shadow tint & black point (cinematic lifted shadows, matte blacks, deep shadows)
+- Highlight roll-off & highlight tint (warm highlights, golden glow, clean whites)
+- Saturation, vibrance & color gamut (muted tone, vibrant pop, pastel, monochrome)
+- Skin tone accuracy & natural color preservation (pada subjek manusia)
+- Color harmony & palette style (teal and orange, moody cinematic, vintage retro, pastel aesthetics)
+- Film look, texture & digital grain
+- Dynamic range & color separation
+
+ATURAN WAJIB & KETENTUAN KHUSUS:
+1. STRICT RELEVANCE: HANYA aspek yang berdasarkan analisis memang membutuhkan penyesuaian warna/tone yang boleh menghasilkan rekomendasi.
+2. JANGAN memunculkan rekomendasi untuk aspek warna yang SUDAH BAIK/OPTIMAL.
+3. Sebutkan secara eksplisit aspek visual/warna yang SUDAH BAIK pada array "goodAspects".
+4. BEBAS JUMLAH / UNLIMITED: JANGAN batasi jumlah rekomendasi (jika ada 3 sebutkan 3, jika ada 8 sebutkan 8, jika ada 12 sebutkan 12).
+5. Kelompokkan prioritas isu ke dalam:
+   - PRIMARY_ISSUE: Masalah warna/tone utama (white balance bergeser, color cast ekstrem, kontras tidak seimbang).
+   - SECONDARY_ISSUE: Penyesuaian saturasi, harmonisasi palet warna, tint bayangan/highlight.
+   - OPTIMIZATION: Peningkatan tone sinematik, split toning, kurva gamma estetik.
+   - PRESERVATION: Preservasi keaslian warna kulit (skin tone) & tekstur alami.
+   - FINISHING: Sentuhan akhir grading film, look estetis, atau nuansa fotografi natural.
+6. Cocokkan dengan shorthand yang tepat, contoh: /colorbalance, /naturaltone, /naturalcontrast, /shadowrecovery, /highlightcontrol, /dynamicrange, /rawphoto, /texturepreservation, /detailpreservation, /naturalprocessing.
+7. Gunakan bahasa: ${preferredLang === 'en' ? 'English' : 'Bahasa Indonesia'}.
+
+Format respons HANYA berupa JSON valid:
+{
+  "visualConditionSummary": "Ringkasan komprehensif karakteristik warna dan tone foto aktual...",
+  "optimizationAreas": [
+    {
+      "aspect": "Nama aspek warna/tone (misal: Color Balance & Temperature)",
+      "problem": "Deskripsi karakteristik atau kebutuhan penyesuaian spesifik",
+      "priority": "PRIMARY_ISSUE",
+      "suggestedAction": "Tindakan penyesuaian colour grading yang direkomendasikan",
+      "recommendedCodes": ["/colorbalance"],
+      "reason": "Alasan mengapa shorthand colour grading ini direkomendasikan"
+    }
+  ],
+  "goodAspects": [
+    "Aspek warna/visual yang dinilai sudah optimal 1",
+    "Aspek warna/visual yang dinilai sudah optimal 2"
+  ],
+  "repairInstructions": "Teks instruksi penyesuaian colour grading..."
+}` : `Anda adalah Ahli Diagnosa Visual & Optimasi Fotografi Digital profesional.
 Tugas Anda: Menganalisis kondisi aktual gambar yang diunggah secara menyeluruh dan obyektif sebagai SOURCE OF TRUTH.
 Fokus utama: Mendiagnosis kondisi visual gambar dan menentukan SELURUH ASPEK gambar yang membutuhkan perbaikan, peningkatan, atau optimasi.
 
@@ -2110,9 +2174,13 @@ Format respons HANYA berupa JSON valid:
   "repairInstructions": "Teks instruksi perbaikan komprehensif..."
 }`;
 
-    const userPromptText = notesPrompt && notesPrompt.trim()
-      ? `Analisis kondisi visual gambar ini untuk perbaikan. Catatan/perhatian khusus pengguna: "${notesPrompt.trim()}".`
-      : 'Analisis kondisi visual gambar ini secara menyeluruh dan tentukan seluruh aspek yang membutuhkan perbaikan atau optimasi.';
+    const userPromptText = isColourGrading
+      ? (notesPrompt && notesPrompt.trim()
+          ? `Analisis karakteristik warna dan tone gambar ini untuk colour grading. Catatan/preferensi warna pengguna: "${notesPrompt.trim()}".`
+          : 'Analisis karakteristik warna, kurva tonal, kontras, dan saturasi gambar ini secara menyeluruh untuk rekomendasi colour grading.')
+      : (notesPrompt && notesPrompt.trim()
+          ? `Analisis kondisi visual gambar ini untuk perbaikan. Catatan/perhatian khusus pengguna: "${notesPrompt.trim()}".`
+          : 'Analisis kondisi visual gambar ini secara menyeluruh dan tentukan seluruh aspek yang membutuhkan perbaikan atau optimasi.');
 
     let lastError = null;
     const attemptErrors = [];
@@ -2209,14 +2277,123 @@ Format respons HANYA berupa JSON valid:
   }
 
   /**
-   * Helper: Offline Heuristic Diagnostic Generator for Image Repair
+   * Helper: Offline Heuristic Diagnostic Generator for Image Repair & Colour Grading
    */
-  generateHeuristicImageRepair(imageFile, notesPrompt = '', preferredLang = 'id') {
+  generateHeuristicImageRepair(imageFile, notesPrompt = '', preferredLang = 'id', isColourGrading = false) {
     const textLower = (notesPrompt || '').toLowerCase();
     const hasNotes = Boolean(notesPrompt && notesPrompt.trim());
 
     const areas = [];
     const goodAspects = [];
+
+    if (isColourGrading) {
+      // Colour Grading Specific Diagnostic Rules
+      const checkOrAddGrading = (triggerWords, areaObj) => {
+        if (hasNotes) {
+          if (triggerWords.some(w => textLower.includes(w))) {
+            areas.push(areaObj);
+          }
+        } else {
+          areas.push(areaObj);
+        }
+      };
+
+      // 1. Color Balance & Temperature
+      checkOrAddGrading(['suhu', 'temperature', 'warm', 'cool', 'hangat', 'dingin', 'kuning', 'biru', 'balance', 'cast', 'white balance'], {
+        aspect: 'Color Balance & Temperature',
+        problem: 'Suhu warna dan white balance memerlukan kalibrasi akurat agar nuansa visual harmonis.',
+        priority: 'PRIMARY_ISSUE',
+        suggestedAction: 'Penyelarasan suhu warna dan kalibrasi white balance netral',
+        recommendedCodes: ['/colorbalance'],
+        reason: 'Menyeimbangkan pergeseran suhu warna agar palet warna terlihat sinematik dan natural.'
+      });
+
+      // 2. Natural Contrast & Gamma Curve
+      checkOrAddGrading(['kontras', 'contrast', 'gamma', 'curve', 'kurva', 'keras', 'datar', 'flat'], {
+        aspect: 'Kurva Kontras & Tonal Gamma',
+        problem: 'Gradasi kontras antara highlight dan shadow memerlukan kurva transisi yang lebih halus dan sinematik.',
+        priority: 'PRIMARY_ISSUE',
+        suggestedAction: 'Penerapan kurva kontras natural seimbang',
+        recommendedCodes: ['/naturalcontrast'],
+        reason: 'Menciptakan kedalaman visual dengan rentang kontras organik khas film modern.'
+      });
+
+      // 3. Shadow Toning & Lifted Blacks
+      checkOrAddGrading(['shadow', 'bayangan', 'gelap', 'hitam', 'lifted', 'pekat', 'black'], {
+        aspect: 'Shadow Toning & Black Point',
+        problem: 'Area bayangan gelap memerlukan pemulihan gradasi tonal agar tidak kehilangan nuansa warna.',
+        priority: 'PRIMARY_ISSUE',
+        suggestedAction: 'Pemulihan detail bayangan dan kontrol black point',
+        recommendedCodes: ['/shadowrecovery'],
+        reason: 'Mempertahankan kedalaman bayangan dengan detail tonal yang tetap terbaca bersih.'
+      });
+
+      // 4. Highlight Roll-off & Glow
+      checkOrAddGrading(['highlight', 'terang', 'silau', 'roll-off', 'roll off', 'putih', 'glow'], {
+        aspect: 'Highlight Roll-off & Tonal Rendah',
+        problem: 'Transisi area terang ke highlight paling tinggi memerlukan penataan yang lembut tanpa clipping keras.',
+        priority: 'SECONDARY_ISSUE',
+        suggestedAction: 'Pengendalian intensitas dan kelembutan highlight',
+        recommendedCodes: ['/highlightcontrol'],
+        reason: 'Menghindari highlight yang terlalu tajam/silau sehingga transisi pencahayaan tampak organik.'
+      });
+
+      // 5. Rentang Tonal & Saturasi Warna
+      checkOrAddGrading(['saturasi', 'saturation', 'vibrance', 'tone', 'warna', 'pucat', 'kusam', 'pekat', 'muted'], {
+        aspect: 'Rentang Tonal & Saturasi Warna',
+        problem: 'Intensitas warna dan kehangatan tonal memerlukan harmonisasi agar tidak over-saturated atau kusam.',
+        priority: 'SECONDARY_ISSUE',
+        suggestedAction: 'Harmonisasi tonal warna natural',
+        recommendedCodes: ['/naturaltone'],
+        reason: 'Menghadirkan saturasi warna yang pas, estetis, dan nyaman dipandang.'
+      });
+
+      // 6. Dynamic Range
+      checkOrAddGrading(['dinamis', 'rentang', 'dynamic', 'range', 'hdr'], {
+        aspect: 'Rentang Dinamis (Dynamic Range)',
+        problem: 'Rentang dinamis antara bayangan dan kilau terang dapat diperluas untuk persepsi kedalaman maksimal.',
+        priority: 'OPTIMIZATION',
+        suggestedAction: 'Perluasan rentang dinamis visual',
+        recommendedCodes: ['/dynamicrange'],
+        reason: 'Meningkatkan rentang tonal agar gradasi warna pada setiap tingkatan eksposur terpelihara utuh.'
+      });
+
+      // 7. Preservasi Tekstur & Warna Alami
+      checkOrAddGrading(['tekstur', 'kulit', 'skin', 'texture', 'asli', 'material'], {
+        aspect: 'Preservasi Tekstur & Warna Kulit Alami',
+        problem: 'Tekstur organik kulit dan material rentan terdistorsi oleh proses pewarnaan berlebih.',
+        priority: 'PRESERVATION',
+        suggestedAction: 'Perlindungan tekstur asli material dan keaslian warna kulit',
+        recommendedCodes: ['/texturepreservation'],
+        reason: 'Memastikan colour grading tidak mengubah pori-pori kulit, serat kain, atau tekstur alami objek.'
+      });
+
+      // 8. Karakter Fotografi Alami (Natural Processing)
+      checkOrAddGrading(['alami', 'natural', 'realis', 'raw', 'film', 'sinematik', 'grade'], {
+        aspect: 'Karakter Pemrosesan Alami & Film Grade',
+        problem: 'Potensi terjadinya artefak digital berlebih selama proses penyesuaian grading warna.',
+        priority: 'FINISHING',
+        suggestedAction: 'Penerapan pemrosesan visual alami tanpa artefak sintetis',
+        recommendedCodes: ['/naturalprocessing'],
+        reason: 'Menjaga hasil akhir colour grading tetap memiliki nuansa fotografi autentik dan bernilai seni tinggi.'
+      });
+
+      if (goodAspects.length === 0) {
+        goodAspects.push('Distribusi pencahayaan dasar dan kontras subjek utama sudah terdistribusi dengan baik.');
+        goodAspects.push('Kerapatan detail dan tekstur dasar gambar sudah terjaga dengan jelas.');
+        goodAspects.push('Tidak ditemukan pergeseran warna ekstrim (chromatic aberration) yang merusak kualitas gambar.');
+      }
+
+      const summary = `Hasil diagnosis colour grading menunjukkan gambar memiliki fondasi visual yang kuat. Ditemukan ${areas.length} area penyesuaian tonal curve, suhu warna, dan palet warna untuk mencapai grade estetis yang harmonis dan optimal.`;
+      const instructions = `Terapkan colour grading profesional: selaraskan kurva kontras, seimbangkan white balance dan suhu warna, kalibrasi saturasi serta tone bayangan dan highlight, dengan tetap mempertahankan keaslian tekstur subjek.`;
+
+      return {
+        visualConditionSummary: summary,
+        optimizationAreas: areas,
+        goodAspects,
+        repairInstructions: instructions
+      };
+    }
 
     // Check specific conditions based on user notes or standard visual diagnosis
     const checkOrAdd = (triggerWords, areaObj) => {

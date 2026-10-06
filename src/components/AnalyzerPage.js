@@ -275,34 +275,38 @@ export function renderAnalyzerPage({
       <!-- 1. Input & Presets Card -->
       ${promptInputComp.html}
 
-      <!-- MODE 3 SPECIFIC: DIAGNOSIS & REKOMENDASI PERBAIKAN GAMBAR CARD -->
-      ${(activeMode === 'SHORTHAND_IMPROVE' && isImageRepair) ? `
+      <!-- MODE 3 / COLOUR GRADING SPECIFIC: DIAGNOSIS & REKOMENDASI PERBAIKAN / COLOUR GRADING GAMBAR CARD -->
+      ${((activeMode === 'SHORTHAND_IMPROVE' || activeMode === 'COLOUR_GRADING') && isImageRepair) ? `
         <section class="panel analyzer-card card-repair-diagnosis" id="card-repair-diagnosis">
           <div class="card-header">
             <div class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" style="color: #c084fc;"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-              <h2 style="color: #c084fc;">🛠️ DIAGNOSIS &amp; REKOMENDASI PERBAIKAN GAMBAR</h2>
+              <svg class="icon" viewBox="0 0 24 24" style="color: ${activeMode === 'COLOUR_GRADING' ? '#ec4899' : '#c084fc'};"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              <h2 style="color: ${activeMode === 'COLOUR_GRADING' ? '#ec4899' : '#c084fc'};">
+                ${activeMode === 'COLOUR_GRADING' ? '🎨 DIAGNOSIS &amp; REKOMENDASI COLOUR GRADING' : '🛠️ DIAGNOSIS &amp; REKOMENDASI PERBAIKAN GAMBAR'}
+              </h2>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <span class="badge badge-purple">🔍 Diagnosis Visual Komprehensif</span>
+              <span class="badge ${activeMode === 'COLOUR_GRADING' ? 'badge-pink' : 'badge-purple'}">
+                ${activeMode === 'COLOUR_GRADING' ? '🎨 Diagnosis Tone & Palet Warna' : '🔍 Diagnosis Visual Komprehensif'}
+              </span>
               <span class="badge badge-blue">⚡ ${diagnosedShorthands.length} Shorthand (UNLIMITED)</span>
             </div>
           </div>
 
-          <!-- 1. Ringkasan Kondisi Visual Gambar -->
+          <!-- 1. Ringkasan Kondisi Visual / Warna Gambar -->
           <div style="margin-bottom: 1.15rem;">
             <h3 style="font-size: 0.825rem; font-weight: 700; color: #e2e8f0; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.35rem;">
-              <span>📷</span> Ringkasan Kondisi Visual Gambar:
+              <span>${activeMode === 'COLOUR_GRADING' ? '🎨' : '📷'}</span> ${activeMode === 'COLOUR_GRADING' ? 'Ringkasan Karakter Warna & Tone Gambar:' : 'Ringkasan Kondisi Visual Gambar:'}
             </h3>
-            <div style="background: rgba(168, 85, 247, 0.08); border-left: 3px solid #c084fc; border-radius: 4px; padding: 0.75rem 0.95rem; color: #f1f5f9; font-size: 0.875rem; line-height: 1.6;">
+            <div style="background: ${activeMode === 'COLOUR_GRADING' ? 'rgba(236, 72, 153, 0.08)' : 'rgba(168, 85, 247, 0.08)'}; border-left: 3px solid ${activeMode === 'COLOUR_GRADING' ? '#ec4899' : '#c084fc'}; border-radius: 4px; padding: 0.75rem 0.95rem; color: #f1f5f9; font-size: 0.875rem; line-height: 1.6;">
               ${visualConditionSummary}
             </div>
           </div>
 
-          <!-- 2. Area yang Membutuhkan Optimasi -->
+          <!-- 2. Area yang Membutuhkan Optimasi / Penyesuaian -->
           <div style="margin-bottom: 1.15rem;">
             <h3 style="font-size: 0.825rem; font-weight: 700; color: #e2e8f0; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.35rem;">
-              <span>⚠️</span> Area yang Membutuhkan Optimasi (${optimizationAreas.length} Teridentifikasi):
+              <span>⚠️</span> ${activeMode === 'COLOUR_GRADING' ? 'Area Penyesuaian Tone & Warna' : 'Area yang Membutuhkan Optimasi'} (${optimizationAreas.length} Teridentifikasi):
             </h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.65rem;">
               ${optimizationAreas.map((area, idx) => `
@@ -339,20 +343,20 @@ export function renderAnalyzerPage({
             </div>
           ` : ''}
 
-          <!-- 4. Rekomendasi Shorthand Perbaikan (UNLIMITED) -->
+          <!-- 4. Rekomendasi Shorthand Perbaikan / Colour Grading (UNLIMITED) -->
           <div style="margin-bottom: 0.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; flex-wrap: wrap; gap: 0.5rem;">
               <h3 style="font-size: 0.825rem; font-weight: 700; color: #e2e8f0; margin: 0; display: flex; align-items: center; gap: 0.35rem;">
-                <span>🎯</span> Rekomendasi Shorthand Perbaikan (${diagnosedShorthands.length} Shorthand Tanpa Batasan):
+                <span>🎯</span> ${activeMode === 'COLOUR_GRADING' ? 'Rekomendasi Shorthand Colour Grading' : 'Rekomendasi Shorthand Perbaikan'} (${diagnosedShorthands.length} Shorthand Tanpa Batasan):
               </h3>
               <span style="font-size: 0.725rem; color: var(--text-muted);">Urutan: Masalah Utama ➔ Sekunder ➔ Peningkatan ➔ Preservasi ➔ Finishing</span>
             </div>
             <div class="repair-shorthands-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.65rem;">
               ${diagnosedShorthands.map(sh => `
-                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 0.75rem 0.85rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid ${activeMode === 'COLOUR_GRADING' ? 'rgba(236, 72, 153, 0.25)' : 'rgba(168, 85, 247, 0.25)'}; border-radius: 8px; padding: 0.75rem 0.85rem; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                      <code style="background: #0f172a; color: #a855f7; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.85rem;">
+                      <code style="background: #0f172a; color: ${activeMode === 'COLOUR_GRADING' ? '#f472b6' : '#a855f7'}; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.85rem;">
                         ${sh.code}
                       </code>
                       ${renderPriorityBadge(sh.issuePriority)}
@@ -366,7 +370,7 @@ export function renderAnalyzerPage({
                   </div>
                   <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.725rem; color: #64748b; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.4rem; margin-top: 0.25rem;">
                     <span>Grup: <strong style="color: #cbd5e1;">${sh.functionGroup}</strong></span>
-                    <span class="badge badge-outline" style="font-size: 0.675rem; color: #a855f7; border-color: rgba(168, 85, 247, 0.4);">TERPASANG</span>
+                    <span class="badge badge-outline" style="font-size: 0.675rem; color: ${activeMode === 'COLOUR_GRADING' ? '#f472b6' : '#a855f7'}; border-color: ${activeMode === 'COLOUR_GRADING' ? 'rgba(236, 72, 153, 0.4)' : 'rgba(168, 85, 247, 0.4)'};">TERPASANG</span>
                   </div>
                 </div>
               `).join('')}

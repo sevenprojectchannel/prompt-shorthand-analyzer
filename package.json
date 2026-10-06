@@ -1,7 +1,7 @@
 {
-  "name": "prompt-shorthand-analyzer-v3.5",
+  "name": "prompt-shorthand-analyzer-v3.6",
   "private": true,
-  "version": "3.5.0",
+  "version": "3.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

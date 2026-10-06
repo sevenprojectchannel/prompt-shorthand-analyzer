@@ -2193,6 +2193,95 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
   assert(lastDispatchedConfig && lastDispatchedConfig.customRequest.includes('(diedit)'), 'Config ter-update dengan hasil editan manual');
 }
 
+// -----------------------------------------------------------------------------
+// V3.6 SPECIFIC: TAB COLOUR GRADING VERIFICATION TEST SUITE
+// -----------------------------------------------------------------------------
+console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICATION ---');
+{
+  const gemini = new GeminiService(INITIAL_SHORTHAND_CATALOG);
+
+  // 1. Verifikasi 5 Mode Tab pada PromptInput
+  const promptInputComp = renderPromptInput({
+    activeMode: 'COLOUR_GRADING',
+    uploadedImage: null
+  });
+
+  assert(promptInputComp.html.includes('data-mode="ANALISA_PROMPT"'), 'PromptInput memiliki Tab Analisa Prompt');
+  assert(promptInputComp.html.includes('data-mode="IMAGE_TO_PROMPT"'), 'PromptInput memiliki Tab Analisa Gambar → Prompt');
+  assert(promptInputComp.html.includes('data-mode="TWO_WORLDS"'), 'PromptInput memiliki Tab 2 dunia');
+  assert(promptInputComp.html.includes('data-mode="SHORTHAND_IMPROVE"'), 'PromptInput memiliki Tab Analisa Shorthand Perbaikan Gambar');
+  assert(promptInputComp.html.includes('data-mode="COLOUR_GRADING"'), 'PromptInput memiliki Tab colour grading');
+  assert(promptInputComp.html.includes('colour grading'), 'Label Tab colour grading tampil tepat');
+
+  // 2. Dropzone & Notice Banner Khusus Colour Grading
+  assert(promptInputComp.html.includes('Mode Analisa Colour Grading:'), 'Banner diagnostik Colour Grading tampil saat mode COLOUR_GRADING aktif');
+  assert(promptInputComp.html.includes('Tarik &amp; lepas gambar yang ingin didiagnosis &amp; di-colour grade di sini'), 'Dropzone teks spesifik colour grading');
+  assert(promptInputComp.html.includes('merekomendasikan shorthand colour grading'), 'Hint dropzone menyebutkan shorthand colour grading');
+
+  // 3. PromptInput ketika Gambar Terpasang pada Mode Colour Grading
+  const mockImage = {
+    name: 'sample-photo.jpg',
+    size: 250000,
+    width: 1920,
+    height: 1080,
+    previewUrl: 'data:image/jpeg;base64,mock',
+    detectedAspectRatio: '16:9'
+  };
+
+  const promptInputWithImg = renderPromptInput({
+    activeMode: 'COLOUR_GRADING',
+    uploadedImage: mockImage
+  });
+
+  assert(promptInputWithImg.html.includes('SOURCE OF TRUTH Diagnosis Colour Grading'), 'Badge gambar menunjukkan SOURCE OF TRUTH Diagnosis Colour Grading');
+  assert(promptInputWithImg.html.includes('Catatan Colour Grading (Opsional / Preferensi Warna)'), 'Label textarea spesifik catatan preferensi colour grading');
+  assert(promptInputWithImg.html.includes('teal and orange'), 'Placeholder textarea menyertakan contoh colour grading');
+  assert(promptInputWithImg.html.includes('🎨 Analisa Colour Grading Gambar'), 'Tombol aksi utama bertuliskan Analisa Colour Grading Gambar');
+
+  // 4. Analisis Visual Colour Grading Heuristik (geminiService.analyzeImageRepair)
+  const repairResult = gemini.generateHeuristicImageRepair(mockImage, '', 'id', true);
+  assert(repairResult && Array.isArray(repairResult.optimizationAreas), 'Heuristik colour grading menghasilkan optimizationAreas');
+  assert(repairResult.optimizationAreas.some(a => a.aspect.includes('Color Balance') || a.aspect.includes('Kurva Kontras')), 'Terdapat area diagnostik Color Balance / Kurva Kontras');
+  assert(repairResult.goodAspects && repairResult.goodAspects.length > 0, 'Aspek yang dinilai sudah optimal didefinisikan');
+  assert(repairResult.visualConditionSummary.includes('colour grading'), 'Ringkasan diagnosa menyebutkan colour grading');
+
+  // 5. Eksekusi Penuh analyzeImageRepair untuk Mode Colour Grading
+  const fullGradingResult = await gemini.analyzeImageRepair({
+    imageFile: mockImage,
+    imageBase64: null,
+    isColourGrading: true,
+    mode: 'COLOUR_GRADING'
+  });
+
+  assert(fullGradingResult.mode === 'COLOUR_GRADING', 'Hasil analisis memiliki mode COLOUR_GRADING');
+  assert(fullGradingResult.isColourGrading === true, 'Flag isColourGrading bernilai true');
+  assert(fullGradingResult.isImageRepair === true, 'Flag isImageRepair bernilai true');
+  assert(fullGradingResult.diagnosedShorthands.length > 0, 'Menghasilkan diagnosedShorthands colour grading');
+  assert(fullGradingResult.optimalPrompt.length > 0, 'Menghasilkan optimalPrompt dengan shorthand terpasang');
+
+  // 6. AnalyzerPage Rendering untuk Mode Colour Grading
+  const analyzerPageComp = renderAnalyzerPage({
+    analysisResult: fullGradingResult,
+    currentPrompt: '',
+    catalog: INITIAL_SHORTHAND_CATALOG,
+    isAnalyzing: false,
+    activeMode: 'COLOUR_GRADING',
+    uploadedImage: mockImage
+  });
+
+  assert(analyzerPageComp.html.includes('🎨 DIAGNOSIS &amp; REKOMENDASI COLOUR GRADING'), 'AnalyzerPage menampilkan judul kartu DIAGNOSIS & REKOMENDASI COLOUR GRADING');
+  assert(analyzerPageComp.html.includes('🎨 Diagnosis Tone & Palet Warna'), 'AnalyzerPage menampilkan badge Diagnosis Tone & Palet Warna');
+  assert(analyzerPageComp.html.includes('Ringkasan Karakter Warna & Tone Gambar:'), 'AnalyzerPage menampilkan sub-judul Ringkasan Karakter Warna & Tone');
+  assert(analyzerPageComp.html.includes('Area Penyesuaian Tone & Warna'), 'AnalyzerPage menampilkan sub-judul Area Penyesuaian Tone & Warna');
+  assert(analyzerPageComp.html.includes('Rekomendasi Shorthand Colour Grading'), 'AnalyzerPage menampilkan sub-judul Rekomendasi Shorthand Colour Grading');
+
+  // 7. Analisa Teks Shorthand pada Mode Colour Grading (analyzeShorthandImprove)
+  const textGradingResult = await gemini.analyzeShorthandImprove('perbaiki tone warna sinematik', null, { isColourGrading: true, mode: 'COLOUR_GRADING' });
+  assert(textGradingResult.mode === 'COLOUR_GRADING', 'Text analysis menghasilkan mode COLOUR_GRADING');
+  assert(textGradingResult.isColourGrading === true, 'Text analysis memiliki isColourGrading true');
+  assert(textGradingResult.diagnostics.improvementAdvice.includes('colour grading'), 'Diagnostics advice spesifik colour grading');
+}
+
 console.log('\n==================================================');
 console.log(`HASIL AKHIR: ${passed} PASSED, ${failed} FAILED`);
 console.log('==================================================\n');

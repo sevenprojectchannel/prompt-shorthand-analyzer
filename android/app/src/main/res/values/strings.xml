@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Prompt Shorthand Analyzer V3.5</string>
+    <string name="app_name">Prompt Shorthand Analyzer V3.6</string>
     <string name="error_offline_title">Koneksi Internet Terputus</string>
     <string name="error_offline_desc">Aplikasi tidak dapat terhubung ke server online. Periksa jaringan internet Anda untuk menggunakan Gemini AI dan fitur online.</string>
     <string name="error_retry">Coba Lagi</string>

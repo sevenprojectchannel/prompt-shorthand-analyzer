@@ -32,8 +32,8 @@ const html = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prompt Shorthand Analyzer V3.5 - 2 Dunia & Multimodal AI</title>
-  <meta name="description" content="Aplikasi analisis prompt semantik V3.5 berbasis Source of Truth V3.3.5 dengan fitur 2 Dunia (kloning analisis gambar visual) dan Pilihan Rasio Aspek.">
+  <title>Prompt Shorthand Analyzer V3.6 - Colour Grading & Multimodal AI</title>
+  <meta name="description" content="Aplikasi analisis prompt semantik V3.6 berbasis Source of Truth V3.5 dengan fitur Colour Grading, 2 Dunia, dan Pilihan Rasio Aspek.">
   <meta name="theme-color" content="#090d16">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,18 +50,18 @@ ${jsContent}
 </body>
 </html>`;
 
-const standalonePath = path.join(projectRoot, 'prompt-shorthand-analyzer-v3.5-standalone.html');
+const standalonePath = path.join(projectRoot, 'prompt-shorthand-analyzer-v3.6-standalone.html');
 fs.writeFileSync(standalonePath, html, 'utf8');
 
-const distStandalone = path.join(projectRoot, 'dist/prompt-shorthand-analyzer-v3.5-standalone.html');
+const distStandalone = path.join(projectRoot, 'dist/prompt-shorthand-analyzer-v3.6-standalone.html');
 fs.writeFileSync(distStandalone, html, 'utf8');
 
-const publicStandalone = path.join(projectRoot, 'public/prompt-shorthand-analyzer-v3.5-standalone.html');
+const publicStandalone = path.join(projectRoot, 'public/prompt-shorthand-analyzer-v3.6-standalone.html');
 fs.writeFileSync(publicStandalone, html, 'utf8');
 
 const artifactDir = 'C:/Users/Seven Studio PC/.gemini/antigravity/brain/47b25806-af3e-4610-9588-b0f361279728';
 if (fs.existsSync(artifactDir)) {
-  fs.writeFileSync(path.join(artifactDir, 'prompt-shorthand-analyzer-v3.5-standalone.html'), html, 'utf8');
+  fs.writeFileSync(path.join(artifactDir, 'prompt-shorthand-analyzer-v3.6-standalone.html'), html, 'utf8');
 }
 
 console.log('Standalone HTML generated successfully with bundles:', cssFile, jsFile);

@@ -25,7 +25,7 @@ android/app/build/
 *.apk
 apks/
 !public/*.apk
-!apks/Prompt-Shorthand-Analyzer-v3.5-release.apk
-!Prompt-Shorthand-Analyzer-v3.5-release.apk
+!apks/Prompt-Shorthand-Analyzer-v3.6-release.apk
+!Prompt-Shorthand-Analyzer-v3.6-release.apk
 *.keystore
 *.jks
