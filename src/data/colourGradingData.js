@@ -158,11 +158,7 @@ export const DEFAULT_COLOUR_GRADING_CONFIG = {
     colorIntensity: 0,
     shadowTone: 'Neutral',     // 'Neutral' | 'Cool Blue' | 'Deep Teal' | 'Warm Amber' | 'Slate Gray'
     highlightTone: 'Neutral'  // 'Neutral' | 'Soft Gold' | 'Clean White' | 'Warm Amber' | 'Soft Rose'
-  },
-
-  // Preview Mode
-  previewMode: 'BEFORE_AFTER', // 'ORIGINAL' | 'BEFORE_AFTER' | 'AFTER'
-  sliderPosition: 50 // 0 to 100 percentage for split slider
+  }
 };
 
 export const SHADOW_TONE_OPTIONS = [

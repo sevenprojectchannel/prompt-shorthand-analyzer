@@ -2,15 +2,17 @@
  * ColourGradingPanel Component (V3.6)
  * Khusus untuk Tab "🎨 COLOUR GRADING"
  * 
- * Menyediakan:
- * 1. Banner Proteksi Non-Destruktif Foto Asli
- * 2. Visual Before ↔ After Canvas Preview dengan Interactive Split Slider
- * 3. Tiga Mode: AUTO, SELECT STYLE, CUSTOM STYLE
- * 4. Pilihan Style terkurasi per kategori
- * 5. Kontrol Color Grading Intensity (0%, 25%, 50%, 75%, 100%)
- * 6. Intelligent Protection System (Highlight, Shadow, Skin Tone, dll)
- * 7. Tombol Reset Color Grading
- * 8. Parameter Custom Style lengkap
+ * Performance Optimized:
+ * - ZERO Preview Canvas Rendering
+ * - ZERO Comparison Slider & Duplicate Buffer
+ * - 100% Non-Destructive Image Protection (Foto Asli = Source of Truth)
+ * - 3 Mode: AUTO, SELECT STYLE, CUSTOM STYLE
+ * - Pilihan Style terkurasi 7 kategori & 37+ style
+ * - Kontrol Color Grading Intensity (0%, 25%, 50%, 75%, 100%)
+ * - Intelligent Protection System (Highlight, Shadow, Skin Tone, Gamut, dll.)
+ * - Tombol Reset Color Grading
+ * - Parameter Custom Style lengkap
+ * - Batch Processing Selector (Multi-Foto)
  */
 
 import {
@@ -21,11 +23,6 @@ import {
   SHADOW_TONE_OPTIONS,
   HIGHLIGHT_TONE_OPTIONS
 } from '../data/colourGradingData.js';
-import {
-  analyzeImageColorTelemetry,
-  calculateAdaptiveAdjustments,
-  renderColorGradedCanvas
-} from '../lib/colourGradingEngine.js';
 
 export function renderColourGradingPanel({
   config,
@@ -42,8 +39,6 @@ export function renderColourGradingPanel({
   const intensity = typeof cfg.intensity === 'number' ? cfg.intensity : 50;
   const protections = cfg.protections || {};
   const custom = cfg.custom || {};
-  const previewMode = cfg.previewMode || 'BEFORE_AFTER';
-  const sliderPosition = typeof cfg.sliderPosition === 'number' ? cfg.sliderPosition : 50;
 
   const currentStyleObj = ALL_COLOUR_GRADING_STYLES.find(s => s.name === selectedStyle) || {
     name: selectedStyle,
@@ -53,7 +48,7 @@ export function renderColourGradingPanel({
   const html = `
     <div class="colour-grading-panel" id="colour-grading-panel" style="margin-top: 1rem; margin-bottom: 1.25rem;">
       <!-- 1. SOURCE IMAGE PROTECTION BANNER (NON-GENERATIVE GUARANTEE) -->
-      <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.825rem; line-height: 1.5; color: #fce7f3; display: flex; align-items: flex-start; gap: 0.65rem;">
+      <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.85rem; font-size: 0.825rem; line-height: 1.5; color: #fce7f3; display: flex; align-items: flex-start; gap: 0.65rem;">
         <span style="font-size: 1.2rem; line-height: 1;">🛡️</span>
         <div>
           <strong style="color: #f472b6; font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">
@@ -63,88 +58,60 @@ export function renderColourGradingPanel({
         </div>
       </div>
 
-      <!-- 2. INTERACTIVE BEFORE ↔ AFTER VISUAL PREVIEW CANVAS -->
-      ${uploadedImage ? `
-        <div class="cg-preview-wrapper" style="background: #090d16; border: 1px solid rgba(236, 72, 153, 0.25); border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 1.15rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-              <span style="font-size: 1rem;">👁️</span>
-              <strong style="font-size: 0.85rem; color: #fdf2f8;">PREVIEW: ORIGINAL VS AI COLOR GRADED</strong>
-            </div>
-            
-            <!-- Preview Controls: ORIGINAL | BEFORE/AFTER | AFTER & RESET -->
-            <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-              <div class="btn-group" style="display: flex; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 2px;">
-                <button type="button" class="btn btn-xs ${previewMode === 'ORIGINAL' ? 'btn-primary' : 'btn-ghost'}" id="btn-cg-preview-original" style="font-size: 0.725rem; padding: 0.2rem 0.55rem;">
-                  [ ORIGINAL ]
-                </button>
-                <button type="button" class="btn btn-xs ${previewMode === 'BEFORE_AFTER' ? 'btn-primary' : 'btn-ghost'}" id="btn-cg-preview-split" style="font-size: 0.725rem; padding: 0.2rem 0.55rem;">
-                  [ BEFORE / AFTER ]
-                </button>
-                <button type="button" class="btn btn-xs ${previewMode === 'AFTER' ? 'btn-primary' : 'btn-ghost'}" id="btn-cg-preview-after" style="font-size: 0.725rem; padding: 0.2rem 0.55rem;">
-                  [ AFTER ]
-                </button>
-              </div>
-
-              <!-- Reset Color Grading Button (Requirement 10) -->
-              <button type="button" class="btn btn-outline btn-xs btn-danger" id="btn-reset-colour-grading" style="font-size: 0.725rem; padding: 0.25rem 0.6rem;" title="Kembalikan seluruh parameter grading ke tampilan foto asli">
-                🔄 RESET COLOR GRADING
-              </button>
-            </div>
-          </div>
-
-          <!-- The Preview Canvas with Split Slider -->
-          <div style="position: relative; width: 100%; max-height: 440px; display: flex; justify-content: center; align-items: center; background: #020617; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
-            <canvas id="cg-render-canvas" style="max-width: 100%; max-height: 440px; display: block; object-fit: contain; cursor: ${previewMode === 'BEFORE_AFTER' ? 'ew-resize' : 'default'};"></canvas>
-            
-            ${previewMode === 'BEFORE_AFTER' ? `
-              <!-- Range slider overlay to drag Before/After division -->
-              <input 
-                type="range" 
-                id="cg-slider-input" 
-                min="0" 
-                max="100" 
-                value="${sliderPosition}" 
-                style="position: absolute; bottom: 12px; left: 10%; width: 80%; z-index: 5; opacity: 0.85; cursor: pointer; accent-color: #ec4899;" 
-                title="Geser pembatas Before ↔ After"
-              />
-            ` : ''}
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.45rem; font-size: 0.725rem; color: #94a3b8;">
-            <span>💡 <em>Klik &amp; geser kursor pada kanvas untuk membandingkan foto asli (kiri) vs graded (kanan) secara dinamis.</em></span>
-            <span id="cg-active-style-label" style="color: #f472b6; font-weight: 600;">Style Target: ${currentStyleObj.name} (${intensity}%)</span>
-          </div>
-
-          <!-- BATCH THUMBNAIL SELECTOR (JIKA MULTI FOTO DIUNGGAH) -->
-          ${batchImages && batchImages.length > 1 ? `
-            <div style="margin-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 0.65rem;">
-              <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">
-                📚 Batch Processing (${batchImages.length} Foto — Analisis &amp; Koreksi Adaptif Individual per Foto):
-              </span>
-              <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem;">
-                ${batchImages.map((bImg, idx) => `
-                  <button 
-                    type="button" 
-                    class="batch-thumb-btn ${idx === activeBatchIndex ? 'active' : ''}" 
-                    data-batch-idx="${idx}" 
-                    style="border: 2px solid ${idx === activeBatchIndex ? '#ec4899' : 'rgba(255,255,255,0.1)'}; background: transparent; padding: 2px; border-radius: 4px; cursor: pointer;"
-                  >
-                    <img src="${bImg.previewUrl}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 2px; display: block;" alt="Foto ${idx+1}" />
-                  </button>
-                `).join('')}
-              </div>
-            </div>
+      <!-- 2. ACTION & STATUS BAR (RESET COLOR GRADING & BATCH INDICATOR) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.55rem 0.85rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="font-size: 0.825rem; font-weight: 700; color: #f472b6; display: flex; align-items: center; gap: 0.35rem;">
+            <span>🎨</span>
+            <span>KONTROL PARAMETER AI COLOR GRADING</span>
+          </span>
+          ${uploadedImage ? `
+            <span style="font-size: 0.725rem; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.25); padding: 0.15rem 0.5rem; border-radius: 4px;">
+              📷 Foto Terpasang (Source of Truth)
+            </span>
           ` : ''}
+          ${currentMode === 'SELECT_STYLE' ? `
+            <span style="font-size: 0.725rem; color: #e2e8f0; background: rgba(255, 255, 255, 0.08); padding: 0.15rem 0.5rem; border-radius: 4px;">
+              Target: <strong>${currentStyleObj.name}</strong> (${intensity}%)
+            </span>
+          ` : ''}
+        </div>
+
+        <!-- Reset Color Grading Button -->
+        <button type="button" class="btn btn-outline btn-xs btn-danger" id="btn-reset-colour-grading" style="font-size: 0.725rem; padding: 0.25rem 0.65rem;" title="Kembalikan seluruh parameter grading ke kondisi awal (Foto Asli)">
+          🔄 RESET COLOR GRADING
+        </button>
+      </div>
+
+      <!-- 3. BATCH THUMBNAIL SELECTOR (JIKA MULTI-FOTO DIUNGGAH) -->
+      ${batchImages && batchImages.length > 1 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem; margin-bottom: 0.85rem;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">
+            📚 Batch Processing (${batchImages.length} Foto — Analisis &amp; Penyesuaian Adaptif Per-Foto):
+          </span>
+          <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem;">
+            ${batchImages.map((bImg, idx) => `
+              <button 
+                type="button" 
+                class="batch-thumb-btn ${idx === activeBatchIndex ? 'active' : ''}" 
+                data-batch-idx="${idx}" 
+                style="border: 2px solid ${idx === activeBatchIndex ? '#ec4899' : 'rgba(255,255,255,0.1)'}; background: transparent; padding: 2px; border-radius: 4px; cursor: pointer;"
+                title="Pilih Foto ${idx+1}"
+              >
+                <img src="${bImg.previewUrl}" style="width: 44px; height: 44px; object-fit: cover; border-radius: 2px; display: block;" alt="Foto ${idx+1}" />
+              </button>
+            `).join('')}
+          </div>
         </div>
       ` : ''}
 
-      <!-- 3. MODE SELECTOR (AUTO | SELECT STYLE | CUSTOM STYLE) -->
-      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 1rem;">
+      <!-- 4. MODE SELECTOR (AUTO | SELECT STYLE | CUSTOM STYLE) -->
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
         <label style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem;">
           <span>🎛️</span>
           <span>1. PILIHAN MODE COLOR GRADING:</span>
         </label>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem;">
           ${COLOUR_GRADING_MODES.map(m => `
             <button 
               type="button" 
@@ -163,9 +130,9 @@ export function renderColourGradingPanel({
         </div>
       </div>
 
-      <!-- 4. SELECT STYLE SECTION (JIKA MODE === 'SELECT_STYLE') -->
+      <!-- 5. SELECT STYLE SECTION (JIKA MODE === 'SELECT_STYLE') -->
       ${currentMode === 'SELECT_STYLE' ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 1rem;">
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
             <label for="cg-style-select" style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
               <span>🎯</span>
@@ -197,9 +164,9 @@ export function renderColourGradingPanel({
         </div>
       ` : ''}
 
-      <!-- 5. CUSTOM STYLE PARAMETERS (JIKA MODE === 'CUSTOM_STYLE') -->
+      <!-- 6. CUSTOM STYLE PARAMETERS (JIKA MODE === 'CUSTOM_STYLE') -->
       ${currentMode === 'CUSTOM_STYLE' ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 1rem;">
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
           <label style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.75rem;">
             <span>⚙️</span>
             <span>2. PARAMETER CUSTOM STYLE:</span>
@@ -305,8 +272,8 @@ export function renderColourGradingPanel({
         </div>
       ` : ''}
 
-      <!-- 6. COLOR GRADING INTENSITY CONTROL (Requirement 7) -->
-      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 1rem;">
+      <!-- 7. COLOR GRADING INTENSITY CONTROL -->
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; flex-wrap: wrap; gap: 0.4rem;">
           <label for="cg-intensity-range" style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
             <span>⚡</span>
@@ -342,7 +309,7 @@ export function renderColourGradingPanel({
         </div>
       </div>
 
-      <!-- 7. INTELLIGENT PROTECTION SYSTEM (Requirement 8) -->
+      <!-- 8. INTELLIGENT PROTECTION SYSTEM -->
       <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; flex-wrap: wrap; gap: 0.4rem;">
           <label style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
@@ -436,39 +403,7 @@ export function renderColourGradingPanel({
         });
       });
 
-      // Preview Mode Buttons: [ ORIGINAL ] | [ BEFORE / AFTER ] | [ AFTER ]
-      const btnOrig = panel.querySelector('#btn-cg-preview-original');
-      const btnSplit = panel.querySelector('#btn-cg-preview-split');
-      const btnAfter = panel.querySelector('#btn-cg-preview-after');
-
-      if (btnOrig) {
-        btnOrig.addEventListener('click', () => {
-          if (onConfigChange) onConfigChange({ ...cfg, previewMode: 'ORIGINAL' });
-        });
-      }
-      if (btnSplit) {
-        btnSplit.addEventListener('click', () => {
-          if (onConfigChange) onConfigChange({ ...cfg, previewMode: 'BEFORE_AFTER' });
-        });
-      }
-      if (btnAfter) {
-        btnAfter.addEventListener('click', () => {
-          if (onConfigChange) onConfigChange({ ...cfg, previewMode: 'AFTER' });
-        });
-      }
-
-      // Split Slider Input
-      const splitSlider = panel.querySelector('#cg-slider-input');
-      if (splitSlider) {
-        splitSlider.addEventListener('input', (e) => {
-          const val = Number(e.target.value);
-          if (onConfigChange) {
-            onConfigChange({ ...cfg, sliderPosition: val });
-          }
-        });
-      }
-
-      // Reset Colour Grading Button (Requirement 10)
+      // Reset Colour Grading Button
       const resetGradingBtn = panel.querySelector('#btn-reset-colour-grading');
       if (resetGradingBtn) {
         resetGradingBtn.addEventListener('click', () => {
@@ -479,7 +414,7 @@ export function renderColourGradingPanel({
               ...cfg,
               mode: 'AUTO',
               selectedStyle: 'Natural Vibrant',
-              intensity: 0, // Reset visual adjustment to 0% (Original)
+              intensity: 50,
               custom: {
                 warmth: 0,
                 tint: 0,
@@ -581,75 +516,6 @@ export function renderColourGradingPanel({
           }
         });
       });
-
-      // Canvas Rendering
-      const canvas = panel.querySelector('#cg-render-canvas');
-      if (canvas && uploadedImage) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          // Source canvas
-          const srcCanvas = document.createElement('canvas');
-          srcCanvas.width = img.width;
-          srcCanvas.height = img.height;
-          const sCtx = srcCanvas.getContext('2d');
-          sCtx.drawImage(img, 0, 0);
-
-          const telemetry = analyzeImageColorTelemetry(srcCanvas);
-          const adjustments = calculateAdaptiveAdjustments(telemetry, cfg);
-
-          renderColorGradedCanvas({
-            sourceCanvas: srcCanvas,
-            targetCanvas: canvas,
-            adjustments,
-            previewMode: cfg.previewMode || 'BEFORE_AFTER',
-            sliderPosition: typeof cfg.sliderPosition === 'number' ? cfg.sliderPosition : 50
-          });
-        };
-        img.src = uploadedImage.previewUrl || uploadedImage.base64;
-
-        // Interactive mouse drag on canvas for Before/After split
-        let isDragging = false;
-        const updateSplit = (clientX) => {
-          const rect = canvas.getBoundingClientRect();
-          const x = clientX - rect.left;
-          const pct = Math.max(0, Math.min(100, Math.round((x / rect.width) * 100)));
-          if (onConfigChange) {
-            onConfigChange({ ...cfg, sliderPosition: pct });
-          }
-        };
-
-        canvas.addEventListener('mousedown', (e) => {
-          if (cfg.previewMode === 'BEFORE_AFTER') {
-            isDragging = true;
-            updateSplit(e.clientX);
-          }
-        });
-        window.addEventListener('mousemove', (e) => {
-          if (isDragging && cfg.previewMode === 'BEFORE_AFTER') {
-            updateSplit(e.clientX);
-          }
-        });
-        window.addEventListener('mouseup', () => {
-          isDragging = false;
-        });
-
-        // Touch support for mobile/tablets
-        canvas.addEventListener('touchstart', (e) => {
-          if (cfg.previewMode === 'BEFORE_AFTER' && e.touches[0]) {
-            isDragging = true;
-            updateSplit(e.touches[0].clientX);
-          }
-        }, { passive: true });
-        window.addEventListener('touchmove', (e) => {
-          if (isDragging && cfg.previewMode === 'BEFORE_AFTER' && e.touches[0]) {
-            updateSplit(e.touches[0].clientX);
-          }
-        }, { passive: true });
-        window.addEventListener('touchend', () => {
-          isDragging = false;
-        });
-      }
     }
   };
 }

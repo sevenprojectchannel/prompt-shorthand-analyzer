@@ -1,12 +1,12 @@
 /**
- * Adaptive AI Color Grading & Canvas Engine (V3.6)
+ * Adaptive AI Color Grading Engine (V3.6)
  * 
  * Prinsip:
  * 1. Adaptive, Intelligent, Non-Destructive Image Enhancement berbasis FOTO ASLI.
  * 2. BUKAN Image Regeneration — 100% mempertahankan subjek, wajah, identitas, dan struktur scene.
  * 3. Menghitung adjustment spesifik per-foto berdasarkan kondisi visual aktual (Style Adaptive Intelligence).
  * 4. Proteksi cerdas: Highlight, Shadow, Skin Tone, dan Oversaturation.
- * 5. Rendering interaktif Before ↔ After langsung di kanvas browser.
+ * 5. PERFORMANCE > PREVIEW — Zero preview canvas overhead, lazy on-demand processing.
  */
 
 import {
@@ -101,6 +101,10 @@ export function analyzeImageColorTelemetry(canvas) {
   const skinPercent = (skinPixels / totalPixels) * 100;
   const highClipPercent = (highClipPixels / totalPixels) * 100;
   const shadowCrushPercent = (shadowCrushPixels / totalPixels) * 100;
+
+  // Cleanup temporary sampling canvas resources immediately
+  sampleCanvas.width = 0;
+  sampleCanvas.height = 0;
 
   return {
     brightness: Math.round(avgLum),
@@ -318,180 +322,3 @@ export function calculateAdaptiveAdjustments(telemetry, config = DEFAULT_COLOUR_
   return finalAdjustments;
 }
 
-/**
- * Render warna visual hasil grading ke Canvas secara real-time
- */
-export function renderColorGradedCanvas({
-  sourceCanvas,
-  targetCanvas,
-  adjustments,
-  previewMode = 'BEFORE_AFTER', // 'ORIGINAL' | 'BEFORE_AFTER' | 'AFTER'
-  sliderPosition = 50 // 0 to 100 percentage
-}) {
-  if (!sourceCanvas || !targetCanvas) return;
-
-  const width = sourceCanvas.width;
-  const height = sourceCanvas.height;
-
-  if (targetCanvas.width !== width || targetCanvas.height !== height) {
-    targetCanvas.width = width;
-    targetCanvas.height = height;
-  }
-
-  const sCtx = sourceCanvas.getContext('2d');
-  const tCtx = targetCanvas.getContext('2d');
-
-  // Ambil data piksel asli
-  const srcImgData = sCtx.getImageData(0, 0, width, height);
-  const srcData = srcImgData.data;
-
-  // Jika preview ORIGINAL, gambar langsung foto asli
-  if (previewMode === 'ORIGINAL') {
-    tCtx.putImageData(srcImgData, 0, 0);
-    return;
-  }
-
-  const destImgData = tCtx.createImageData(width, height);
-  const destData = destImgData.data;
-
-  // Parameter penyesuaian terhitung
-  const exp = adjustments.exposure || 0;
-  const expFactor = Math.pow(2, exp); // Standard photography exposure stop formula
-  const con = (adjustments.contrast || 0) / 100;
-  const conFactor = (1 + con);
-  const hl = (adjustments.highlights || 0) / 100;
-  const sh = (adjustments.shadows || 0) / 100;
-  const warm = (adjustments.warmth || 0) * 0.8;
-  const tnt = (adjustments.tint || 0) * 0.6;
-  const sat = 1 + ((adjustments.saturation || 0) / 100);
-  const vib = (adjustments.vibrance || 0) / 100;
-
-  // Split-screen boundary for BEFORE_AFTER mode
-  const splitX = previewMode === 'BEFORE_AFTER' 
-    ? Math.round((sliderPosition / 100) * width)
-    : width + 1; // if AFTER, grade everything
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-
-      const rOrig = srcData[idx];
-      const gOrig = srcData[idx + 1];
-      const bOrig = srcData[idx + 2];
-      const aOrig = srcData[idx + 3];
-
-      // Di mode BEFORE_AFTER: sisi kiri (x < splitX) adalah BEFORE (FOTO ASLI)
-      if (previewMode === 'BEFORE_AFTER' && x < splitX) {
-        destData[idx] = rOrig;
-        destData[idx + 1] = gOrig;
-        destData[idx + 2] = bOrig;
-        destData[idx + 3] = aOrig;
-        continue;
-      }
-
-      // Deteksi pixel kulit untuk proteksi rona wajah
-      const isSkin = (rOrig > gOrig && gOrig > bOrig && (rOrig - gOrig) >= 15 && (gOrig - bOrig) >= 8);
-      const skinDamp = isSkin ? 0.35 : 1.0;
-
-      // 1. Exposure
-      let r = rOrig * expFactor;
-      let g = gOrig * expFactor;
-      let b = bOrig * expFactor;
-
-      // 2. White Balance (Temperature & Tint)
-      r += (warm * 0.8 + tnt * 0.3) * skinDamp;
-      g -= (tnt * 0.5) * skinDamp;
-      b -= (warm * 0.8) * skinDamp;
-
-      // 3. Highlights & Shadows curve
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      if (lum < 128) {
-        // Shadow zone: lift or deepen
-        const shadowMask = (1 - (lum / 128));
-        const sAdj = sh * shadowMask * 40;
-        r += sAdj;
-        g += sAdj;
-        b += sAdj;
-      } else {
-        // Highlight zone: compress or boost
-        const highlightMask = ((lum - 128) / 127);
-        const hAdj = hl * highlightMask * 40;
-        r += hAdj;
-        g += hAdj;
-        b += hAdj;
-      }
-
-      // 4. Contrast S-Curve
-      r = 128 + (r - 128) * conFactor;
-      g = 128 + (g - 128) * conFactor;
-      b = 128 + (b - 128) * conFactor;
-
-      // 5. Saturation & Vibrance
-      const currLum = 0.299 * r + 0.587 * g + 0.114 * b;
-      const maxC = Math.max(r, g, b);
-      const minC = Math.min(r, g, b);
-      const currSat = maxC === 0 ? 0 : (maxC - minC) / maxC;
-
-      // Vibrance: boosts less saturated colors more
-      const vibFactor = 1 + vib * (1 - currSat) * skinDamp;
-      const totalSatFactor = sat * vibFactor;
-
-      r = currLum + (r - currLum) * totalSatFactor;
-      g = currLum + (g - currLum) * totalSatFactor;
-      b = currLum + (b - currLum) * totalSatFactor;
-
-      // 6. Safe Gamut Clamp (0 - 255)
-      destData[idx] = Math.max(0, Math.min(255, Math.round(r)));
-      destData[idx + 1] = Math.max(0, Math.min(255, Math.round(g)));
-      destData[idx + 2] = Math.max(0, Math.min(255, Math.round(b)));
-      destData[idx + 3] = aOrig;
-    }
-  }
-
-  tCtx.putImageData(destImgData, 0, 0);
-
-  // Jika mode BEFORE_AFTER, gambar garis pembatas slider & penanda
-  if (previewMode === 'BEFORE_AFTER' && splitX > 0 && splitX < width) {
-    tCtx.save();
-    // Garis pemisah vertikal
-    tCtx.strokeStyle = '#ffffff';
-    tCtx.lineWidth = 2;
-    tCtx.shadowColor = 'rgba(0,0,0,0.6)';
-    tCtx.shadowBlur = 6;
-    tCtx.beginPath();
-    tCtx.moveTo(splitX, 0);
-    tCtx.lineTo(splitX, height);
-    tCtx.stroke();
-
-    // Lingkaran handle slider di tengah
-    const centerY = height / 2;
-    tCtx.fillStyle = '#ffffff';
-    tCtx.beginPath();
-    tCtx.arc(splitX, centerY, 16, 0, Math.PI * 2);
-    tCtx.fill();
-
-    // Panah handle ◀ ▶
-    tCtx.fillStyle = '#0f172a';
-    tCtx.font = 'bold 12px sans-serif';
-    tCtx.textAlign = 'center';
-    tCtx.textBaseline = 'middle';
-    tCtx.fillText('◀ ▶', splitX, centerY);
-
-    // Label BEFORE di kiri atas
-    tCtx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    tCtx.fillRect(12, 12, 85, 26);
-    tCtx.fillStyle = '#f8fafc';
-    tCtx.font = 'bold 11px sans-serif';
-    tCtx.textAlign = 'center';
-    tCtx.textBaseline = 'middle';
-    tCtx.fillText('ORIGINAL', 54, 25);
-
-    // Label AFTER di kanan atas
-    tCtx.fillStyle = 'rgba(236, 72, 153, 0.85)';
-    tCtx.fillRect(width - 97, 12, 85, 26);
-    tCtx.fillStyle = '#ffffff';
-    tCtx.fillText('AI GRADED', width - 54, 25);
-
-    tCtx.restore();
-  }
-}

@@ -3512,9 +3512,4 @@
   transition: transform 0.15s ease;
 }
 
-.cg-preview-wrapper {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 

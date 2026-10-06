@@ -2389,9 +2389,14 @@ console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICAT
     activeBatchIndex: 0
   });
   assert(panelRender.html.includes('id="colour-grading-panel"'), 'ColourGradingPanel me-render wrapper panel');
-  assert(panelRender.html.includes('[ ORIGINAL ]'), 'Menyediakan tombol preview [ ORIGINAL ]');
-  assert(panelRender.html.includes('[ BEFORE / AFTER ]'), 'Menyediakan tombol preview [ BEFORE / AFTER ]');
-  assert(panelRender.html.includes('[ AFTER ]'), 'Menyediakan tombol preview [ AFTER ]');
+  assert(!panelRender.html.includes('[ ORIGINAL ]'), 'Tombol preview [ ORIGINAL ] dihapus sepenuhnya');
+  assert(!panelRender.html.includes('[ BEFORE / AFTER ]'), 'Tombol preview [ BEFORE / AFTER ] dihapus sepenuhnya');
+  assert(!panelRender.html.includes('[ AFTER ]'), 'Tombol preview [ AFTER ] dihapus sepenuhnya');
+  assert(!panelRender.html.includes('id="cg-render-canvas"'), 'Canvas preview id="cg-render-canvas" tidak ada di DOM');
+  assert(!panelRender.html.includes('id="cg-slider-input"'), 'Slider pembatas Before/After tidak ada di DOM');
+  assert(!panelRender.html.includes('PREVIEW: ORIGINAL VS AI COLOR GRADED'), 'Section preview tidak ada di DOM');
+  assert(!('previewMode' in DEFAULT_COLOUR_GRADING_CONFIG), 'DEFAULT_COLOUR_GRADING_CONFIG tidak memuat previewMode');
+  assert(!('sliderPosition' in DEFAULT_COLOUR_GRADING_CONFIG), 'DEFAULT_COLOUR_GRADING_CONFIG tidak memuat sliderPosition');
   assert(panelRender.html.includes('RESET COLOR GRADING'), 'Menyediakan tombol RESET COLOR GRADING');
   assert(panelRender.html.includes('data-cg-mode="AUTO"'), 'Menyediakan tombol mode AUTO');
   assert(panelRender.html.includes('data-cg-mode="SELECT_STYLE"'), 'Menyediakan tombol mode SELECT STYLE');
