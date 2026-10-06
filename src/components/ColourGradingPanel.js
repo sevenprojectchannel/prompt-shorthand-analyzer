@@ -2,12 +2,14 @@
  * ColourGradingPanel Component (V3.6)
  * Khusus untuk Tab "🎨 COLOUR GRADING"
  * 
- * Performance Optimized:
- * - ZERO Preview Canvas Rendering
- * - ZERO Comparison Slider & Duplicate Buffer
+ * Performance & UI Enhancement:
+ * - ZERO Permanent Description Box (No wasted vertical space)
+ * - Dynamic Floating Tooltip on Hover & Keyboard Focus per Style
+ * - Custom Dropdown / Listbox with Search & Category Grouping
+ * - Full Style Descriptions for all 38 Curated Styles + Custom Style
+ * - ZERO Preview Canvas Rendering (High performance)
  * - 100% Non-Destructive Image Protection (Foto Asli = Source of Truth)
  * - 3 Mode: AUTO, SELECT STYLE, CUSTOM STYLE
- * - Pilihan Style terkurasi 7 kategori & 37+ style
  * - Kontrol Color Grading Intensity (0%, 25%, 50%, 75%, 100%)
  * - Intelligent Protection System (Highlight, Shadow, Skin Tone, Gamut, dll.)
  * - Tombol Reset Color Grading
@@ -42,11 +44,26 @@ export function renderColourGradingPanel({
 
   const currentStyleObj = ALL_COLOUR_GRADING_STYLES.find(s => s.name === selectedStyle) || {
     name: selectedStyle,
+    category: 'Target Visual',
+    categoryIcon: '🎯',
     description: 'Arah visual colour grading adaptif.'
   };
 
   const html = `
     <div class="colour-grading-panel" id="colour-grading-panel" style="margin-top: 1rem; margin-bottom: 1.25rem;">
+      <!-- FLOATING POPOVER TOOLTIP (Zero permanent layout space, follows hovered / focused Style) -->
+      <div 
+        id="cg-style-tooltip" 
+        class="cg-style-tooltip" 
+        role="tooltip" 
+        aria-hidden="true" 
+        style="display: none; position: fixed; z-index: 999999; max-width: 330px; background: rgba(15, 23, 42, 0.98); border: 1px solid #f472b6; border-radius: 6px; padding: 0.65rem 0.85rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(236, 72, 153, 0.25); pointer-events: none; backdrop-filter: blur(8px); transition: opacity 0.12s ease; opacity: 0;"
+      >
+        <div id="cg-tooltip-title" style="font-weight: 700; color: #f472b6; font-size: 0.825rem; margin-bottom: 0.15rem;"></div>
+        <div id="cg-tooltip-cat" style="font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;"></div>
+        <div id="cg-tooltip-desc" style="font-size: 0.775rem; color: #f1f5f9; line-height: 1.45;"></div>
+      </div>
+
       <!-- 1. SOURCE IMAGE PROTECTION BANNER (NON-GENERATIVE GUARANTEE) -->
       <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.85rem; font-size: 0.825rem; line-height: 1.5; color: #fce7f3; display: flex; align-items: flex-start; gap: 0.65rem;">
         <span style="font-size: 1.2rem; line-height: 1;">🛡️</span>
@@ -72,7 +89,7 @@ export function renderColourGradingPanel({
           ` : ''}
           ${currentMode === 'SELECT_STYLE' ? `
             <span style="font-size: 0.725rem; color: #e2e8f0; background: rgba(255, 255, 255, 0.08); padding: 0.15rem 0.5rem; border-radius: 4px;">
-              Target: <strong>${currentStyleObj.name}</strong> (${intensity}%)
+              Target: <strong>${selectedStyle}</strong> (${intensity}%)
             </span>
           ` : ''}
         </div>
@@ -117,6 +134,8 @@ export function renderColourGradingPanel({
               type="button" 
               class="cg-mode-btn ${currentMode === m.id ? 'active' : ''}" 
               data-cg-mode="${m.id}" 
+              ${m.id === 'CUSTOM_STYLE' ? 'data-style-name="Custom Style"' : ''}
+              tabindex="0"
               style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid ${currentMode === m.id ? '#ec4899' : 'rgba(255, 255, 255, 0.1)'}; background: ${currentMode === m.id ? 'rgba(236, 72, 153, 0.15)' : 'rgba(30, 41, 59, 0.4)'}; color: #f8fafc; cursor: pointer; transition: all 0.2s ease;"
             >
               <strong style="font-size: 0.825rem; color: ${currentMode === m.id ? '#f472b6' : '#f1f5f9'}; margin-bottom: 0.2rem;">
@@ -134,7 +153,7 @@ export function renderColourGradingPanel({
       ${currentMode === 'SELECT_STYLE' ? `
         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
-            <label for="cg-style-select" style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
+            <label id="cg-style-label" style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
               <span>🎯</span>
               <span>2. TARGET VISUAL STYLE:</span>
             </label>
@@ -143,23 +162,91 @@ export function renderColourGradingPanel({
             </span>
           </div>
 
-          <select id="cg-style-select" style="width: 100%; background: #0f172a; border: 1px solid rgba(236, 72, 153, 0.3); color: #f8fafc; padding: 0.55rem 0.75rem; border-radius: 6px; font-size: 0.825rem; margin-bottom: 0.5rem;">
-            ${COLOUR_GRADING_CATEGORIES.map(cat => `
-              <optgroup label="${cat.icon} ${cat.category}">
-                ${cat.styles.map(s => `
-                  <option value="${s.name}" ${selectedStyle === s.name ? 'selected' : ''}>
-                    ${s.name}
-                  </option>
-                `).join('')}
-              </optgroup>
-            `).join('')}
-          </select>
+          <!-- CUSTOM DROPDOWN / LISTBOX WITH HOVER/FOCUS TOOLTIPS -->
+          <div class="cg-custom-dropdown" id="cg-custom-dropdown" style="position: relative; width: 100%;">
+            <!-- Trigger Button: Hanya menampilkan Style Name (Bersih, Tidak Memakan Ruang) -->
+            <button 
+              type="button" 
+              id="cg-style-dropdown-btn" 
+              class="cg-style-dropdown-btn" 
+              aria-haspopup="listbox" 
+              aria-expanded="false" 
+              aria-labelledby="cg-style-label" 
+              data-style-name="${selectedStyle}"
+              tabindex="0"
+              style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: #0f172a; border: 1px solid rgba(236, 72, 153, 0.35); color: #f8fafc; padding: 0.6rem 0.85rem; border-radius: 6px; font-size: 0.825rem; cursor: pointer; text-align: left; transition: all 0.2s ease;"
+            >
+              <span style="display: flex; align-items: center; gap: 0.45rem;">
+                <span style="font-size: 0.95rem;">${currentStyleObj.categoryIcon || '🎯'}</span>
+                <strong style="color: #fce7f3; font-size: 0.825rem;">${selectedStyle}</strong>
+                <span style="font-size: 0.72rem; color: #94a3b8; margin-left: 0.25rem;">(${currentStyleObj.category || 'Target Visual'})</span>
+              </span>
+              <span id="cg-dropdown-arrow" style="font-size: 0.75rem; color: #f472b6; transition: transform 0.2s ease;">▼</span>
+            </button>
 
-          <div id="cg-style-desc-box" style="background: rgba(236, 72, 153, 0.06); border-left: 3px solid #ec4899; padding: 0.6rem 0.85rem; border-radius: 4px; font-size: 0.8rem; color: #e2e8f0; line-height: 1.45;">
-            <strong>${currentStyleObj.name}:</strong> ${currentStyleObj.description}
+            <!-- Hidden Standard Select Element (Dukungan Kompatibilitas Form & Test) -->
+            <select id="cg-style-select" style="display: none;" aria-hidden="true" tabindex="-1">
+              ${COLOUR_GRADING_CATEGORIES.map(cat => `
+                <optgroup label="${cat.icon} ${cat.category}">
+                  ${cat.styles.map(s => `
+                    <option value="${s.name}" ${selectedStyle === s.name ? 'selected' : ''}>
+                      ${s.name}
+                    </option>
+                  `).join('')}
+                </optgroup>
+              `).join('')}
+            </select>
+
+            <!-- Custom Listbox Dropdown Menu (Grouped by Category) -->
+            <div 
+              id="cg-style-menu" 
+              class="cg-style-menu" 
+              role="listbox" 
+              aria-labelledby="cg-style-label" 
+              style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 290px; overflow-y: auto; background: #090d16; border: 1px solid rgba(236, 72, 153, 0.4); border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85); z-index: 1000; padding: 0.35rem 0;"
+            >
+              <!-- Search Filter Input -->
+              <div style="padding: 0.4rem 0.65rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); position: sticky; top: 0; background: #090d16; z-index: 2;">
+                <input 
+                  type="text" 
+                  id="cg-style-search" 
+                  placeholder="🔍 Cari Style visual (misal: Film, Warm, Moody, Clean)..." 
+                  style="width: 100%; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.15); color: #f8fafc; padding: 0.35rem 0.65rem; border-radius: 4px; font-size: 0.775rem; outline: none;"
+                />
+              </div>
+
+              <!-- Listbox Options Container -->
+              <div id="cg-style-list-items">
+                ${COLOUR_GRADING_CATEGORIES.map(cat => `
+                  <div class="cg-category-group" data-cat-name="${cat.category}" style="padding: 0.25rem 0;">
+                    <div style="padding: 0.25rem 0.75rem; font-size: 0.68rem; font-weight: 700; color: #f472b6; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem; background: rgba(236, 72, 153, 0.06);">
+                      <span>${cat.icon}</span>
+                      <span>${cat.category}</span>
+                    </div>
+                    ${cat.styles.map(s => {
+                      const isSelected = selectedStyle === s.name;
+                      return `
+                        <div 
+                          class="cg-style-item ${isSelected ? 'selected' : ''}" 
+                          role="option" 
+                          aria-selected="${isSelected}" 
+                          data-style-name="${s.name}" 
+                          tabindex="0" 
+                          style="padding: 0.45rem 0.85rem; font-size: 0.8rem; color: ${isSelected ? '#f472b6' : '#e2e8f0'}; background: ${isSelected ? 'rgba(236, 72, 153, 0.15)' : 'transparent'}; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s ease;"
+                        >
+                          <span>${s.name}</span>
+                          ${isSelected ? '<span style="font-size: 0.75rem; color: #f472b6; font-weight: 700;">✓</span>' : ''}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
           </div>
-          <small style="color: #94a3b8; display: block; margin-top: 0.4rem; font-size: 0.725rem;">
-            💡 <em>Prinsip Style Adaptive Intelligence: AI menggunakan style ini sebagai target visual dan menghitung penyesuaian individual per-foto, bukan menerapkan preset angka statis.</em>
+
+          <small style="color: #94a3b8; display: block; margin-top: 0.45rem; font-size: 0.725rem;">
+            💡 <em>Arahkan kursor atau fokus keyboard ke nama Style untuk melihat deskripsi visual target.</em>
           </small>
         </div>
       ` : ''}
@@ -167,10 +254,21 @@ export function renderColourGradingPanel({
       <!-- 6. CUSTOM STYLE PARAMETERS (JIKA MODE === 'CUSTOM_STYLE') -->
       ${currentMode === 'CUSTOM_STYLE' ? `
         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 0.85rem; margin-bottom: 0.85rem;">
-          <label style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.75rem;">
-            <span>⚙️</span>
-            <span>2. PARAMETER CUSTOM STYLE:</span>
-          </label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.4rem;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 0.35rem;">
+              <span>⚙️</span>
+              <span>2. PARAMETER CUSTOM STYLE:</span>
+            </label>
+            <span 
+              class="cg-custom-style-info"
+              data-style-name="Custom Style" 
+              tabindex="0"
+              style="font-size: 0.725rem; color: #f472b6; cursor: help; border-bottom: 1px dashed rgba(244, 114, 182, 0.6); padding-bottom: 1px;"
+              title="Arahkan kursor untuk info Custom Style"
+            >
+              ℹ️ Info Custom Style
+            </span>
+          </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin-bottom: 0.85rem;">
             <!-- Warmth -->
@@ -360,6 +458,242 @@ export function renderColourGradingPanel({
       const panel = container.querySelector('#colour-grading-panel');
       if (!panel) return;
 
+      // Tooltip elements & functions
+      const tooltip = panel.querySelector('#cg-style-tooltip');
+      const tipTitle = panel.querySelector('#cg-tooltip-title');
+      const tipCat = panel.querySelector('#cg-tooltip-cat');
+      const tipDesc = panel.querySelector('#cg-tooltip-desc');
+
+      const showTooltip = (targetEl, styleName) => {
+        if (!tooltip || !targetEl) return;
+        const name = styleName || targetEl.getAttribute('data-style-name');
+        if (!name) return;
+
+        const styleObj = ALL_COLOUR_GRADING_STYLES.find(
+          s => s.name.toLowerCase() === name.toLowerCase()
+        ) || {
+          name,
+          category: 'Target Visual',
+          categoryIcon: '🎯',
+          description: 'Arah visual colour grading adaptif.'
+        };
+
+        if (tipTitle) tipTitle.textContent = styleObj.name;
+        if (tipCat) tipCat.textContent = `${styleObj.categoryIcon || '🎯'} ${styleObj.category || ''}`;
+        if (tipDesc) tipDesc.textContent = styleObj.description;
+
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
+        tooltip.setAttribute('aria-hidden', 'false');
+
+        // Smart positioning relative to target element and viewport
+        const rect = targetEl.getBoundingClientRect();
+        const tipRect = tooltip.getBoundingClientRect();
+
+        let top = rect.top + (rect.height / 2) - (tipRect.height / 2);
+        let left = rect.right + 12;
+
+        // Check if tooltip overflows viewport on the right
+        if (left + tipRect.width > window.innerWidth - 12) {
+          left = rect.left - tipRect.width - 12;
+        }
+        // If still overflowing on the left, place below or above
+        if (left < 12) {
+          left = Math.max(12, Math.min(window.innerWidth - tipRect.width - 12, rect.left));
+          top = rect.bottom + 8;
+        }
+        // Viewport vertical clamping
+        if (top < 12) top = 12;
+        if (top + tipRect.height > window.innerHeight - 12) {
+          top = window.innerHeight - tipRect.height - 12;
+        }
+
+        tooltip.style.top = `${Math.round(top)}px`;
+        tooltip.style.left = `${Math.round(left)}px`;
+      };
+
+      const hideTooltip = () => {
+        if (tooltip) {
+          tooltip.style.opacity = '0';
+          tooltip.style.display = 'none';
+          tooltip.setAttribute('aria-hidden', 'true');
+        }
+      };
+
+      // Helper to bind tooltip to an element on mouse hover and keyboard focus
+      const attachTooltipEvents = (el, styleName) => {
+        if (!el) return;
+        el.addEventListener('mouseenter', () => showTooltip(el, styleName));
+        el.addEventListener('mouseleave', hideTooltip);
+        el.addEventListener('focus', () => showTooltip(el, styleName));
+        el.addEventListener('blur', hideTooltip);
+      };
+
+      // Custom Dropdown & Listbox Elements
+      const dropdownBtn = panel.querySelector('#cg-style-dropdown-btn');
+      const dropdownMenu = panel.querySelector('#cg-style-menu');
+      const dropdownArrow = panel.querySelector('#cg-dropdown-arrow');
+      const searchInput = panel.querySelector('#cg-style-search');
+      const hiddenSelect = panel.querySelector('#cg-style-select');
+
+      let isDropdownOpen = false;
+
+      const openDropdown = () => {
+        if (!dropdownMenu) return;
+        isDropdownOpen = true;
+        dropdownMenu.style.display = 'block';
+        if (dropdownBtn) dropdownBtn.setAttribute('aria-expanded', 'true');
+        if (dropdownArrow) dropdownArrow.style.transform = 'rotate(180deg)';
+        if (searchInput) {
+          searchInput.value = '';
+          filterItems('');
+          setTimeout(() => searchInput.focus(), 50);
+        }
+      };
+
+      const closeDropdown = () => {
+        if (!dropdownMenu) return;
+        isDropdownOpen = false;
+        dropdownMenu.style.display = 'none';
+        if (dropdownBtn) dropdownBtn.setAttribute('aria-expanded', 'false');
+        if (dropdownArrow) dropdownArrow.style.transform = 'rotate(0deg)';
+        hideTooltip();
+      };
+
+      const toggleDropdown = () => {
+        if (isDropdownOpen) closeDropdown();
+        else openDropdown();
+      };
+
+      // Search filter function
+      function filterItems(query) {
+        const q = (query || '').toLowerCase().trim();
+        panel.querySelectorAll('.cg-category-group').forEach(group => {
+          let hasVisible = false;
+          group.querySelectorAll('.cg-style-item').forEach(item => {
+            const sName = (item.getAttribute('data-style-name') || '').toLowerCase();
+            if (!q || sName.includes(q)) {
+              item.style.display = 'flex';
+              hasVisible = true;
+            } else {
+              item.style.display = 'none';
+            }
+          });
+          group.style.display = hasVisible ? 'block' : 'none';
+        });
+      }
+
+      if (dropdownBtn) {
+        dropdownBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleDropdown();
+        });
+
+        // Hover & focus on trigger button shows currently selected style description
+        attachTooltipEvents(dropdownBtn, selectedStyle);
+
+        dropdownBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openDropdown();
+          } else if (e.key === 'Escape') {
+            closeDropdown();
+          }
+        });
+      }
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          filterItems(e.target.value);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeDropdown();
+            if (dropdownBtn) dropdownBtn.focus();
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const firstItem = panel.querySelector('.cg-style-item:not([style*="display: none"])');
+            if (firstItem) firstItem.focus();
+          }
+        });
+      }
+
+      // Close dropdown when clicking outside
+      const onDocumentClick = (e) => {
+        if (isDropdownOpen && !panel.querySelector('#cg-custom-dropdown')?.contains(e.target)) {
+          closeDropdown();
+        }
+      };
+      document.addEventListener('click', onDocumentClick);
+
+      // Bind all .cg-style-item options
+      panel.querySelectorAll('.cg-style-item').forEach(item => {
+        const sName = item.getAttribute('data-style-name');
+        
+        // Tooltip on hover & focus
+        attachTooltipEvents(item, sName);
+
+        // Click to select
+        item.addEventListener('click', () => {
+          if (onConfigChange && sName) {
+            onConfigChange({ ...cfg, selectedStyle: sName });
+          }
+          if (hiddenSelect) {
+            hiddenSelect.value = sName;
+          }
+          closeDropdown();
+          if (dropdownBtn) dropdownBtn.focus();
+        });
+
+        // Keyboard navigation inside listbox
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            item.click();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeDropdown();
+            if (dropdownBtn) dropdownBtn.focus();
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const allVisible = Array.from(panel.querySelectorAll('.cg-style-item:not([style*="display: none"])'));
+            const idx = allVisible.indexOf(item);
+            if (idx >= 0 && idx < allVisible.length - 1) {
+              allVisible[idx + 1].focus();
+            }
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const allVisible = Array.from(panel.querySelectorAll('.cg-style-item:not([style*="display: none"])'));
+            const idx = allVisible.indexOf(item);
+            if (idx > 0) {
+              allVisible[idx - 1].focus();
+            } else if (searchInput) {
+              searchInput.focus();
+            }
+          }
+        });
+      });
+
+      // Bind hidden select for programmatic change or fallback tests
+      if (hiddenSelect) {
+        hiddenSelect.addEventListener('change', (e) => {
+          if (onConfigChange) {
+            onConfigChange({ ...cfg, selectedStyle: e.target.value });
+          }
+        });
+      }
+
+      // Attach tooltip for Custom Style elements
+      const customStyleInfoBtn = panel.querySelector('.cg-custom-style-info');
+      if (customStyleInfoBtn) {
+        attachTooltipEvents(customStyleInfoBtn, 'Custom Style');
+      }
+
+      const customModeBtn = panel.querySelector('.cg-mode-btn[data-cg-mode="CUSTOM_STYLE"]');
+      if (customModeBtn) {
+        attachTooltipEvents(customModeBtn, 'Custom Style');
+      }
+
       // Mode Selection
       panel.querySelectorAll('.cg-mode-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -369,16 +703,6 @@ export function renderColourGradingPanel({
           }
         });
       });
-
-      // Style Selection
-      const styleSelect = panel.querySelector('#cg-style-select');
-      if (styleSelect) {
-        styleSelect.addEventListener('change', (e) => {
-          if (onConfigChange) {
-            onConfigChange({ ...cfg, selectedStyle: e.target.value });
-          }
-        });
-      }
 
       // Intensity Slider
       const intensitySlider = panel.querySelector('#cg-intensity-range');

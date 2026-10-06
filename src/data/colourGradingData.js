@@ -37,80 +37,80 @@ export const COLOUR_GRADING_CATEGORIES = [
     category: 'NATURAL / REALISTIC',
     icon: '🌿',
     styles: [
-      { name: 'Natural Vibrant', description: 'Warna hidup dan segar namun tetap natural, saturasi terarah tanpa oversaturasi.' },
-      { name: 'Natural Clean', description: 'Tonal bersih, neutral white balance, kejernihan alami tanpa color cast.' },
-      { name: 'Natural DSLR', description: 'Karakter sensor kamera DSLR profesional, dynamic range seimbang, gradasi halus.' },
-      { name: 'Natural Film', description: 'Sentuhan tone film alami dengan roll-off highlight lembut dan kontras organik.' },
-      { name: 'True to Life', description: 'Akurasi warna presisi 100% menyerupai apa yang dilihat mata manusia secara langsung.' },
-      { name: 'Soft Natural', description: 'Kontras lembut, bayangan terbuka bersih, transisi tonal halus yang menenangkan.' }
+      { name: 'Natural Vibrant', description: 'Warna natural tetapi lebih hidup dan segar, dengan vibrance terarah dan color separation yang tetap realistis tanpa oversaturation.' },
+      { name: 'Natural Clean', description: 'Tampilan bersih, seimbang, dan realistis dengan white balance netral, contrast moderat, dan warna yang natural.' },
+      { name: 'Natural DSLR', description: 'Karakter foto DSLR modern dengan tonal kaya, detail natural, warna realistis, depth yang baik, dan highlight terkontrol.' },
+      { name: 'Natural Film', description: 'Tampilan natural dengan sentuhan film ringan, tonal lembut, highlight smooth, dan saturation terkontrol.' },
+      { name: 'True to Life', description: 'Memprioritaskan reproduksi warna yang paling mendekati kondisi asli dengan koreksi minimal dan akurat.' },
+      { name: 'Soft Natural', description: 'Tampilan natural yang lembut dengan contrast rendah hingga sedang, highlight halus, shadow tidak terlalu dalam, dan warna yang nyaman.' }
     ]
   },
   {
     category: 'WARM / BRIGHT',
     icon: '☀️',
     styles: [
-      { name: 'Warm Cinematic', description: 'Nuansa hangat sinematik dengan shadow keemasan lembut dan atmosfer emosional.' },
-      { name: 'Golden Hour', description: 'Pendaran cahaya matahari terbenam/terbit, warm highlights dan golden glow merata.' },
-      { name: 'Sun-Kissed', description: 'Sentuhan hangat sinar matahari musim panas, kulit cerah berseri tanpa over-orange.' },
-      { name: 'Bright & Airy', description: 'Highlight terang lapang, bayangan diangkat bersih, atmosfer segar dan luas.' },
-      { name: 'Warm Lifestyle', description: 'Tonal hangat fotogenik khas editorial majalah gaya hidup modern.' },
-      { name: 'Soft Golden', description: 'Kehangatan amber halus yang menenangkan tanpa tint kuning/merah berlebih.' }
+      { name: 'Warm Cinematic', description: 'Nuansa hangat dan cinematic dengan highlight warm, shadow sedikit lebih dalam, dan color separation elegan.' },
+      { name: 'Golden Hour', description: 'Karakter cahaya keemasan seperti golden hour dengan warmth adaptif, highlight keemasan, dan tonal hangat yang natural.' },
+      { name: 'Sun-Kissed', description: 'Kesan terkena cahaya matahari lembut dengan warmth ringan, highlight bercahaya, dan skin tone tetap natural.' },
+      { name: 'Bright & Airy', description: 'Tampilan terang, ringan, bersih, dan airy dengan shadow terangkat, contrast lembut, dan highlight tetap terkendali.' },
+      { name: 'Warm Lifestyle', description: 'Tampilan hangat, ramah, dan natural untuk foto lifestyle dengan warmth moderat dan warna kulit yang nyaman.' },
+      { name: 'Soft Golden', description: 'Nuansa keemasan yang lembut dengan highlight warm dan contrast rendah hingga sedang.' }
     ]
   },
   {
     category: 'CINEMATIC',
     icon: '🎬',
     styles: [
-      { name: 'Moody Cinematic', description: 'Kontras sinematik berkarakter dengan bayangan pekat dan mood mendalam.' },
-      { name: 'Modern Cinematic', description: 'Palet film layar lebar modern dengan separasi warna jernih antara subjek dan latar.' },
-      { name: 'Teal & Orange Cinematic', description: 'Pemisahan komplementer klasik (teal pada bayangan, warm orange pada highlight & kulit).' },
-      { name: 'Cinematic Contrast', description: 'Kurva kontras S-curve terukur khas proyeksi bioskop dengan highlight terkontrol.' },
-      { name: 'Dark Cinematic', description: 'Nuansa gelap berbobot, atmosfer misterius dengan retensi detail bayangan.' },
-      { name: 'Soft Cinematic', description: 'Film sinematik berdaya pikat lembut, kontras rendah yang anggun dan puitis.' }
+      { name: 'Moody Cinematic', description: 'Atmosfer cinematic yang lebih dalam dengan shadow kaya, contrast terkontrol, saturation sedikit lebih tenang, dan mood dramatis.' },
+      { name: 'Modern Cinematic', description: 'Cinematic modern dengan tonal bersih, contrast elegan, warna terkontrol, dan color separation halus.' },
+      { name: 'Teal & Orange Cinematic', description: 'Separation cyan/teal pada area cool dan orange pada area warm secara selektif dengan perlindungan warna kulit.' },
+      { name: 'Cinematic Contrast', description: 'Menonjolkan depth melalui contrast lebih kuat, black lebih tegas, dan highlight tetap terjaga.' },
+      { name: 'Dark Cinematic', description: 'Cinematic dengan overall exposure dan shadow lebih rendah namun tetap mempertahankan detail penting pada area gelap.' },
+      { name: 'Soft Cinematic', description: 'Cinematic yang halus dengan contrast lembut, highlight smooth, shadow tidak crushed, dan warna tetap realistis.' }
     ]
   },
   {
     category: 'VIBRANT / COLORFUL',
     icon: '🌈',
     styles: [
-      { name: 'Vivid Color', description: 'Saturasi kaya dan hidup di semua channel warna dengan proteksi clipping.' },
-      { name: 'Rich Color', description: 'Kedalaman warna berbobot tanpa kesan artifisial, tonasi padat.' },
-      { name: 'Color Pop', description: 'Penonjolan warna-warna primer dengan kontras selektif yang memukau.' },
-      { name: 'Fresh Vibrant', description: 'Kesegaran warna alami dengan penekanan pada hijau dedaunan dan biru langit.' },
-      { name: 'Deep Color', description: 'Warna berdensitas tinggi, nuansa mewah dengan bayangan mantap.' }
+      { name: 'Vivid Color', description: 'Meningkatkan vibrance dan saturation secara selektif untuk warna yang lebih hidup tanpa oversaturation.' },
+      { name: 'Rich Color', description: 'Memberikan warna yang lebih kaya, dalam, dan memiliki depth dengan saturation yang dikontrol adaptif.' },
+      { name: 'Color Pop', description: 'Menonjolkan warna utama secara selektif sambil menjaga warna lain tetap seimbang.' },
+      { name: 'Fresh Vibrant', description: 'Tampilan segar, cerah, youthful, dan colorful dengan fokus pada vibrance dan clean color separation.' },
+      { name: 'Deep Color', description: 'Menghasilkan warna lebih pekat dan kaya dengan tonal depth lebih kuat tanpa membuat warna terlihat neon.' }
     ]
   },
   {
     category: 'CLEAN / MODERN',
     icon: '✨',
     styles: [
-      { name: 'Clean & Fresh', description: 'Putih bersih, tanpa color cast, visual cerah dan jernih seperti udara pagi.' },
-      { name: 'Modern Clean', description: 'Minimalis kontemporer, tonal terkalibrasi presisi dengan kontras seimbang.' },
-      { name: 'Crisp Detail', description: 'Mikro-kontras tajam pada tekstur tanpa memunculkan noise digital kasar.' },
-      { name: 'High Key Clean', description: 'Kecerahan dominan yang lapang dengan detail highlight tetap terlindungi.' },
-      { name: 'Minimal Neutral', description: 'Palet warna terkendali dengan tonal netral yang tenang dan elegan.' }
+      { name: 'Clean & Fresh', description: 'Warna bersih, segar, netral, dan modern dengan contrast moderat serta saturation terkontrol.' },
+      { name: 'Modern Clean', description: 'Tampilan modern dan polished dengan white balance akurat, tonal rapi, dan warna tidak berlebihan.' },
+      { name: 'Crisp Detail', description: 'Menonjolkan struktur tonal, local contrast, dan detail secara ringan tanpa menghasilkan sharpening berlebihan.' },
+      { name: 'High Key Clean', description: 'Tampilan dominan terang dengan shadow ringan, highlight bersih, dan contrast rendah hingga sedang.' },
+      { name: 'Minimal Neutral', description: 'Color grading sangat minimal dengan warna netral dan tonal natural untuk hasil profesional dan understated.' }
     ]
   },
   {
     category: 'FILM / ARTISTIC',
     icon: '🎞️',
     styles: [
-      { name: 'Film Look', description: 'Emulasi emulsi seluloid klasik dengan kurva tonal organik dan gradasi lembut.' },
-      { name: 'Vintage Film', description: 'Nuansa film tempo dulu dengan warm faded look dan bayangan matte.' },
-      { name: 'Analog Film', description: 'Karakter kamera analog 35mm dengan black point sedikit terangkat.' },
-      { name: 'Pastel Film', description: 'Palet warna pastel lembut bernuansa artistik dengan kontras rendah.' },
-      { name: 'Faded Film', description: 'Tonal matte dengan bayangan memudar yang puitis dan nostalgia.' },
-      { name: 'Retro Color', description: 'Sentuhan nostalgia dengan pergeseran warna retro khas fotografi 70/80-an.' }
+      { name: 'Film Look', description: 'Karakter film halus melalui tonal curve lembut, highlight roll-off, saturation terkontrol, dan color palette harmonis.' },
+      { name: 'Vintage Film', description: 'Nuansa film vintage dengan warna sedikit muted, contrast lembut, dan karakter warm/faded yang tetap mempertahankan detail.' },
+      { name: 'Analog Film', description: 'Karakter analog dengan tonal lembut, color response organik, saturation moderat, dan warna yang tidak terlalu digital.' },
+      { name: 'Pastel Film', description: 'Warna lebih lembut dan pastel dengan saturation lebih rendah, highlight airy, dan contrast ringan.' },
+      { name: 'Faded Film', description: 'Efek faded dengan black sedikit terangkat, contrast lembut, dan warna sedikit desaturated.' },
+      { name: 'Retro Color', description: 'Color palette bernuansa retro dengan karakter warna klasik tetap mempertahankan tonal dan detail foto.' }
     ]
   },
   {
     category: 'DRAMATIC',
     icon: '🎭',
     styles: [
-      { name: 'Dark & Moody', description: 'Atmosfer dramatis intens dengan dominasi bayangan berbobot.' },
-      { name: 'Dramatic Contrast', description: 'Perbedaan tegas antara gelap dan terang untuk dampak visual kuat.' },
-      { name: 'Deep Shadow', description: 'Bayangan dalam berdensitas tinggi dengan siluet tegas dan highlight tajam.' },
-      { name: 'Low Key Cinematic', description: 'Komposisi cahaya minim (low-key) dengan highlight terfokus dramatis.' }
+      { name: 'Dark & Moody', description: 'Nuansa gelap, atmospheric, dan emosional dengan shadow lebih dalam serta warna yang lebih subdued.' },
+      { name: 'Dramatic Contrast', description: 'Menonjolkan perbedaan terang dan gelap dengan contrast kuat namun tetap menjaga highlight dan shadow penting.' },
+      { name: 'Deep Shadow', description: 'Memprioritaskan depth melalui shadow lebih kaya dan pekat tanpa crushing detail penting.' },
+      { name: 'Low Key Cinematic', description: 'Overall image lebih gelap dengan fokus cahaya pada area utama, shadow dalam, dan karakter cinematic yang kuat.' }
     ]
   }
 ];
@@ -119,7 +119,12 @@ export const ALL_COLOUR_GRADING_STYLES = [
   ...COLOUR_GRADING_CATEGORIES.flatMap(cat => 
     cat.styles.map(s => ({ ...s, category: cat.category, categoryIcon: cat.icon }))
   ),
-  { name: 'Custom Style', description: 'Parameter warna kustom yang ditentukan pengguna dengan kalibrasi adaptif AI.', category: 'CUSTOM', categoryIcon: '⚙️' }
+  { 
+    name: 'Custom Style', 
+    description: 'Style yang ditentukan pengguna melalui parameter color grading dengan adaptive correction berdasarkan kondisi masing-masing foto.', 
+    category: 'CUSTOM', 
+    categoryIcon: '⚙️' 
+  }
 ];
 
 export const INTENSITY_LEVELS = [

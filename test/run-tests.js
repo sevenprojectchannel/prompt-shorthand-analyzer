@@ -2402,6 +2402,13 @@ console.log('\n--- V3.6 TEST: TAB COLOUR GRADING (5TH TAB) & DIAGNOSIS VERIFICAT
   assert(panelRender.html.includes('data-cg-mode="SELECT_STYLE"'), 'Menyediakan tombol mode SELECT STYLE');
   assert(panelRender.html.includes('data-cg-mode="CUSTOM_STYLE"'), 'Menyediakan tombol mode CUSTOM STYLE');
   assert(panelRender.html.includes('id="cg-style-select"'), 'Menyediakan dropdown pilihan Style');
+  assert(panelRender.html.includes('id="cg-style-dropdown-btn"'), 'Menyediakan custom dropdown trigger button');
+  assert(panelRender.html.includes('id="cg-style-menu"'), 'Menyediakan custom listbox menu');
+  assert(panelRender.html.includes('id="cg-style-tooltip"'), 'Menyediakan floating tooltip popover');
+  assert(!panelRender.html.includes('id="cg-style-desc-box"'), 'Box deskripsi permanen di bawah dropdown dihapus (ruang vertikal efisien)');
+  assert(ALL_COLOUR_GRADING_STYLES.every(s => s.description && s.description.length > 10), 'Semua Style memiliki deskripsi lengkap');
+  const customStyleObj = ALL_COLOUR_GRADING_STYLES.find(s => s.name === 'Custom Style');
+  assert(customStyleObj && customStyleObj.description.includes('parameter color grading'), 'Custom Style memiliki deskripsi lengkap');
   assert(panelRender.html.includes('id="cg-intensity-range"'), 'Menyediakan slider Intensity');
   assert(panelRender.html.includes('id="cg-prot-skin"'), 'Menyediakan proteksi Skin Tone Protection');
   assert(panelRender.html.includes('id="cg-prot-hl"'), 'Menyediakan proteksi Highlight Protection');

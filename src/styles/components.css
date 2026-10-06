@@ -3512,4 +3512,53 @@
   transition: transform 0.15s ease;
 }
 
+/* Custom Dropdown & Floating Tooltip for Colour Grading Target Styles */
+.cg-style-dropdown-btn:hover,
+.cg-style-dropdown-btn:focus-visible {
+  border-color: #f472b6 !important;
+  background: #1e293b !important;
+  outline: none;
+}
+
+.cg-style-item:hover,
+.cg-style-item:focus,
+.cg-style-item:focus-visible {
+  background: rgba(236, 72, 153, 0.22) !important;
+  color: #ffffff !important;
+  outline: none;
+}
+
+.cg-style-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cg-style-menu::-webkit-scrollbar-track {
+  background: #090d16;
+}
+
+.cg-style-menu::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.35);
+  border-radius: 3px;
+}
+
+.cg-style-menu::-webkit-scrollbar-thumb:hover {
+  background: #f472b6;
+}
+
+.cg-style-tooltip {
+  animation: cgTooltipFadeIn 0.12s ease-out;
+}
+
+@keyframes cgTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
 
