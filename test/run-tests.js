@@ -2217,7 +2217,7 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
 
   // 6. PROMPT TEMPLATES Library Content & Structure Check
   assert(Array.isArray(TWO_WORLDS_PROMPT_TEMPLATES), 'TWO_WORLDS_PROMPT_TEMPLATES adalah array');
-  assert(TWO_WORLDS_PROMPT_TEMPLATES.length === 6, 'Memuat 6 item (1 default placeholder + 5 template resmi)');
+  assert(TWO_WORLDS_PROMPT_TEMPLATES.length === 8, 'Memuat 8 item (1 default placeholder + 7 template resmi)');
   assert(TWO_WORLDS_PROMPT_TEMPLATES[0].id === 'none', 'Item pertama adalah placeholder opsional');
 
   const expectedTemplates = [
@@ -2225,7 +2225,9 @@ console.log('\n--- TEST V3.5: 6 FITUR PARAMETER KHUSUS TAB "2 DUNIA" ---');
     'Tambahkan subjek manusia realistis dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.',
     'Tambahkan subjek manusia realistis dan pertahankan seluruh subjek serta karakter yang sudah ada dalam gambar. Jangan memodifikasi atau menghilangkan subjek/karakter asli. Latar belakang menyesuaikan dengan gambar unggahan.',
     'Tambahkan subjek baru yang mengenakan hijab, lalu sesuaikan outfit dan warna agar harmonis dengan gambar unggahan.',
-    'Tambahkan subjek manusia realistis yang mengenakan hijab, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+    'Tambahkan subjek manusia realistis yang mengenakan hijab, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.',
+    'Tambahkan satu subjek manusia laki-laki realistis sebagai subjek baru ke dalam gambar unggahan. Analisis terlebih dahulu tema, lingkungan, perspektif, pencahayaan, warna, skala, dan konteks adegan, kemudian sesuaikan pakaian, pose, ekspresi, dan aktivitas laki-laki tersebut agar menyatu secara natural dan konsisten dengan adegan. Pilih pakaian yang sesuai dengan tema, lingkungan, suasana, dan konteks visual gambar unggahan. Jangan mengubah, menghapus, mengganti, memindahkan, atau merusak elemen asli gambar. Semua elemen asli tetap menjadi SOURCE OF TRUTH. Laki-laki tersebut hanya ditambahkan sebagai elemen baru ke ruang yang tersedia dalam adegan dan tidak boleh menggantikan atau mengubah elemen asli apa pun.',
+    'Tambahkan subjek manusia realistis berhijab sebagai subjek baru ke dalam gambar unggahan. Analisis terlebih dahulu tema, lingkungan, perspektif, pencahayaan, warna, skala, dan konteks adegan, kemudian sesuaikan pakaian, pose, ekspresi, dan aktivitas manusia agar menyatu secara natural dengan adegan. Jangan mengubah, menghapus, mengganti, memindahkan, atau merusak elemen asli gambar. Semua elemen asli tetap menjadi SOURCE OF TRUTH. Manusia hanya ditambahkan ke ruang yang tersedia dalam adegan dan tidak boleh menggantikan elemen asli.'
   ];
 
   for (let i = 0; i < expectedTemplates.length; i++) {
@@ -2597,10 +2599,12 @@ console.log('\n--- VERIFIKASI V3.6: GLOBAL ENGLISH PROMPT OPTIMAL (5 TABS & FITU
   assert(tab5Directives.includes('INTELLIGENT PROTECTIONS ACTIVE:'), 'Tab 5: Proteksi cerdas terdaftar dalam bahasa Inggris');
   assert(tab5Directives.includes('Natural Skin Tone Protection'), 'Tab 5: Proteksi warna kulit natural terpasang');
 
-  // 7. Verifikasi 5 Template Resmi 2 Dunia dalam Bahasa Inggris
+  // 7. Verifikasi Template Resmi 2 Dunia dalam Bahasa Inggris (7 Template)
   assert(TWO_WORLDS_TEMPLATES_EN.tpl_1.includes('Add a realistic human subject alongside existing subjects'), 'Template 1 resmi berbahasa Inggris AI');
   assert(TWO_WORLDS_TEMPLATES_EN.tpl_4.includes('wearing an elegant hijab'), 'Template 4 resmi berbahasa Inggris AI');
   assert(TWO_WORLDS_TEMPLATES_EN.tpl_5.includes('wearing a hijab'), 'Template 5 resmi berbahasa Inggris AI');
+  assert(TWO_WORLDS_TEMPLATES_EN.tpl_6.includes('Add a realistic human male as a new subject into the uploaded image'), 'Template 6 resmi berbahasa Inggris AI');
+  assert(TWO_WORLDS_TEMPLATES_EN.tpl_7.includes('Add a realistic human subject wearing a hijab as a new subject into the uploaded image'), 'Template 7 resmi berbahasa Inggris AI');
 
   // 8. Verifikasi UI Bahasa Indonesia Tidak Berubah (Tetap Bahasa Indonesia)
   const uiInputWithImg = renderPromptInput({ activeMode: 'COLOUR_GRADING', uploadedImage: { name: 'test.jpg' } });

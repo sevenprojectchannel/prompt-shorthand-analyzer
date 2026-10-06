@@ -17,7 +17,9 @@ export const TWO_WORLDS_TEMPLATES_EN = {
   tpl_2: 'Add a realistic human subject with coordinating outfit, actively participating in the context of the uploaded image, while strictly preserving all original subjects and characters without modification or removal.',
   tpl_3: 'Add a realistic human subject while strictly preserving all existing subjects and characters within the image. Do not modify or remove original subjects or characters. Harmonize the background with the uploaded image.',
   tpl_4: 'Add a new subject wearing an elegant hijab, harmonizing outfit styling and color palette with the uploaded image.',
-  tpl_5: 'Add a realistic human subject wearing a hijab, with coordinating outfit and engaging in activity harmonious with the uploaded image, while strictly preserving all original subjects and characters without modification or removal.'
+  tpl_5: 'Add a realistic human subject wearing a hijab, with coordinating outfit and engaging in activity harmonious with the uploaded image, while strictly preserving all original subjects and characters without modification or removal.',
+  tpl_6: 'Add a realistic human male as a new subject into the uploaded image. First analyze the theme, environment, perspective, lighting, color, scale, and scene context, then adapt the male subject\'s clothing, pose, expression, and activity to integrate naturally and consistently with the scene. Choose attire suited to the theme, environment, atmosphere, and visual context of the uploaded image. Do not modify, delete, replace, move, or alter original image elements. All original elements remain the SOURCE OF TRUTH. The male subject is only added as a new element into available space within the scene and must not replace or alter any original elements.',
+  tpl_7: 'Add a realistic human subject wearing a hijab as a new subject into the uploaded image. First analyze the theme, environment, perspective, lighting, color, scale, and scene context, then adapt the clothing, pose, expression, and activity of the subject to blend naturally with the scene. Do not modify, delete, replace, move, or alter original image elements. All original elements remain the SOURCE OF TRUTH. The subject is only added into available space within the scene and must not replace original elements.'
 };
 
 // 2. Pemetaan Demografi 2 Dunia
@@ -67,6 +69,14 @@ const PHRASE_DICTIONARY = [
   [
     /Tambahkan subjek manusia realistis yang mengenakan hijab[,\s]+dengan pakaian yang menyesuaikan[,\s]+serta terlibat dalam aktivitas sesuai gambar unggahan[,\s]+dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan\.?/gi,
     TWO_WORLDS_TEMPLATES_EN.tpl_5
+  ],
+  [
+    /Tambahkan satu subjek manusia laki-laki realistis sebagai subjek baru ke dalam gambar unggahan[\s\S]*?tidak boleh menggantikan atau mengubah elemen asli apa pun\.?/gi,
+    TWO_WORLDS_TEMPLATES_EN.tpl_6
+  ],
+  [
+    /Tambahkan subjek manusia realistis berhijab sebagai subjek baru ke dalam gambar unggahan[\s\S]*?tidak boleh menggantikan elemen asli\.?/gi,
+    TWO_WORLDS_TEMPLATES_EN.tpl_7
   ],
 
   // Two Worlds custom request variations

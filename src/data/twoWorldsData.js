@@ -41,6 +41,16 @@ export const TWO_WORLDS_PROMPT_TEMPLATES = [
     id: 'tpl_5',
     label: 'Template 5: Tambahkan subjek manusia realistis yang mengenakan hijab...',
     text: 'Tambahkan subjek manusia realistis yang mengenakan hijab, dengan pakaian yang menyesuaikan, serta terlibat dalam aktivitas sesuai gambar unggahan, dengan tetap mempertahankan seluruh subjek dan karakter asli tanpa perubahan atau penghapusan.'
+  },
+  {
+    id: 'tpl_6',
+    label: 'Template 6: Tambahkan satu subjek manusia laki-laki realistis sebagai subjek baru...',
+    text: 'Tambahkan satu subjek manusia laki-laki realistis sebagai subjek baru ke dalam gambar unggahan. Analisis terlebih dahulu tema, lingkungan, perspektif, pencahayaan, warna, skala, dan konteks adegan, kemudian sesuaikan pakaian, pose, ekspresi, dan aktivitas laki-laki tersebut agar menyatu secara natural dan konsisten dengan adegan. Pilih pakaian yang sesuai dengan tema, lingkungan, suasana, dan konteks visual gambar unggahan. Jangan mengubah, menghapus, mengganti, memindahkan, atau merusak elemen asli gambar. Semua elemen asli tetap menjadi SOURCE OF TRUTH. Laki-laki tersebut hanya ditambahkan sebagai elemen baru ke ruang yang tersedia dalam adegan dan tidak boleh menggantikan atau mengubah elemen asli apa pun.'
+  },
+  {
+    id: 'tpl_7',
+    label: 'Template 7: Tambahkan subjek manusia realistis berhijab sebagai subjek baru...',
+    text: 'Tambahkan subjek manusia realistis berhijab sebagai subjek baru ke dalam gambar unggahan. Analisis terlebih dahulu tema, lingkungan, perspektif, pencahayaan, warna, skala, dan konteks adegan, kemudian sesuaikan pakaian, pose, ekspresi, dan aktivitas manusia agar menyatu secara natural dengan adegan. Jangan mengubah, menghapus, mengganti, memindahkan, atau merusak elemen asli gambar. Semua elemen asli tetap menjadi SOURCE OF TRUTH. Manusia hanya ditambahkan ke ruang yang tersedia dalam adegan dan tidak boleh menggantikan elemen asli.'
   }
 ];
 
