@@ -11,7 +11,8 @@
     "android:sync": "npm run build && node scripts/sync-android-assets.js",
     "android:apk:debug": "cd android && gradlew.bat assembleDebug",
     "android:apk:release": "cd android && gradlew.bat assembleRelease",
-    "build:standalone": "npm run build && node scripts/build-standalone-html.js"
+    "build:standalone": "npm run build && node scripts/build-standalone-html.js",
+    "build:all": "npm run build && node scripts/build-standalone-html.js && node scripts/prepare-dist-multi.js"
   },
   "devDependencies": {
     "vite": "^6.2.0"
